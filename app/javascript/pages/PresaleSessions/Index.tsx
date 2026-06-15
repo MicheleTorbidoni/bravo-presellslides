@@ -1,5 +1,5 @@
-import { Head, router } from "@inertiajs/react"
-import { ClipboardList, Plus } from "lucide-react"
+import { Head, Link, router } from "@inertiajs/react"
+import { ChevronRight, ClipboardList, Plus } from "lucide-react"
 import { AppShell } from "@/components/AppShell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,19 +10,25 @@ type SessionRow = {
   id: number
   company_name: string | null
   status: SessionStatus
+  profiled: boolean
   created_at: string
 }
 
-const STATUS_LABEL: Record<SessionStatus, string> = {
-  in_progress: "In corso",
-  closed: "Chiusa",
-  recap_sent: "Recap inviato",
-}
+type BadgeTone = "accent" | "neutral" | "signal" | "muted"
 
-const STATUS_TONE: Record<SessionStatus, "accent" | "neutral" | "signal"> = {
-  in_progress: "accent",
-  closed: "neutral",
-  recap_sent: "signal",
+// In-progress sessions are split into two levels: "Da compilare" before the
+// profiling has been completed, "In corso" once a profile has been determined.
+function statusBadge(session: SessionRow): { label: string; tone: BadgeTone } {
+  switch (session.status) {
+    case "closed":
+      return { label: "Chiusa", tone: "neutral" }
+    case "recap_sent":
+      return { label: "Recap inviato", tone: "signal" }
+    default:
+      return session.profiled
+        ? { label: "In corso", tone: "accent" }
+        : { label: "Da compilare", tone: "muted" }
+  }
 }
 
 export default function PresaleSessionsIndex({
@@ -73,25 +79,29 @@ export default function PresaleSessionsIndex({
           </div>
         ) : (
           <ul className="mt-6 divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-page">
-            {sessions.map((session) => (
-              <li
-                key={session.id}
-                className="flex items-center gap-3 px-4 py-3"
-              >
-                <ClipboardList className="h-4 w-4 text-ink-muted" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium text-ink-display">
-                    {session.company_name || "(senza nome)"}
-                  </div>
-                  <div className="truncate text-xs text-ink-muted">
-                    Creata {formatDate(session.created_at)}
-                  </div>
-                </div>
-                <Badge tone={STATUS_TONE[session.status]}>
-                  {STATUS_LABEL[session.status]}
-                </Badge>
-              </li>
-            ))}
+            {sessions.map((session) => {
+              const badge = statusBadge(session)
+              return (
+                <li key={session.id}>
+                  <Link
+                    href={`/presale_sessions/${session.id}/${session.profiled ? "result" : "setup"}`}
+                    className="flex items-center gap-3 px-4 py-3 no-underline hover:bg-surface"
+                  >
+                    <ClipboardList className="h-4 w-4 text-ink-muted" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-ink-display">
+                        {session.company_name || "(senza nome)"}
+                      </div>
+                      <div className="truncate text-xs text-ink-muted">
+                        Creata {formatDate(session.created_at)}
+                      </div>
+                    </div>
+                    <Badge tone={badge.tone}>{badge.label}</Badge>
+                    <ChevronRight className="h-4 w-4 text-ink-muted" />
+                  </Link>
+                </li>
+              )
+            })}
           </ul>
         )}
       </AppShell>

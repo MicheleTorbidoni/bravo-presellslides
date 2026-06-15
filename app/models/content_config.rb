@@ -31,6 +31,48 @@ module ContentConfig
       load_config("slides").fetch(:criticalities)
     end
 
+    # Resolves the relevant criticalities for a (segment, operational_profile)
+    # combination by looking it up in mappings.json. Returns the matching
+    # criticality hashes ({ id:, label: }) in the order declared in the mapping,
+    # or [] when there is no mapping for the combination (predictable fallback —
+    # the operator will then choose freely in the hub).
+    def criticalities_for(segment:, operational_profile:)
+      mapping = mappings.find do |m|
+        m[:segment] == segment && m[:operationalProfile] == operational_profile
+      end
+      return [] unless mapping
+
+      by_id = criticalities.index_by { |c| c[:id] }
+      mapping[:criticalities].filter_map { |id| by_id[id] }
+    end
+
+    # Turns a composite operational_profile key (e.g. "ho-excel-bom-bom1") into a
+    # human-readable path by walking the decision tree from the start node,
+    # consuming one token per question. Returns [{ question:, answer: }] — used to
+    # show the profiling outcome on the result screen. Unknown tokens stop the walk.
+    def decode_profile(operational_profile)
+      return [] if operational_profile.blank?
+
+      tree = decision_tree
+      tokens = operational_profile.split("-")
+      question_id = tree[:start]
+      steps = []
+
+      tokens.each do |token|
+        question = tree.dig(:questions, question_id.to_sym)
+        break unless question
+
+        answer = question[:answers].find { |a| a[:code] == token }
+        break unless answer
+
+        steps << { question: question[:text], answer: answer[:label] }
+        question_id = answer[:next]
+        break unless question_id
+      end
+
+      steps
+    end
+
     # Clears the in-memory cache. Mainly useful in tests.
     def reload!
       @cache = {}

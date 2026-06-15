@@ -40,4 +40,47 @@ class ContentConfigTest < ActiveSupport::TestCase
       end
     end
   end
+
+  test "criticalities_for resolves a known segment x profile to its subset" do
+    resolved = ContentConfig.criticalities_for(
+      segment: "meccanica",
+      operational_profile: "ho-excel-bom-bom1"
+    )
+
+    assert_equal [ 1, 3, 4, 7, 12 ], resolved.map { |c| c[:id] }
+    assert(resolved.all? { |c| c[:label].present? })
+  end
+
+  test "criticalities_for returns [] for an unmapped combination (fallback)" do
+    assert_equal [], ContentConfig.criticalities_for(
+      segment: "meccanica",
+      operational_profile: "does-not-exist"
+    )
+    assert_equal [], ContentConfig.criticalities_for(
+      segment: "meccanica",
+      operational_profile: nil
+    )
+  end
+
+  test "decode_profile walks the tree into readable question/answer steps" do
+    steps = ContentConfig.decode_profile("ho-excel-bom-bom1")
+
+    assert_equal 4, steps.size
+    assert_equal "La produzione è Human Only?", steps.first[:question]
+    assert_equal "Sì", steps.first[:answer]
+    assert_equal "Multilivello", ContentConfig.decode_profile("ho-excel-bom-bomN").last[:answer]
+  end
+
+  test "decode_profile handles a skipped-question path (d1=Sì skips d2)" do
+    steps = ContentConfig.decode_profile("mixed-noiot-excel-nobom")
+
+    # mixed -> d2 asked -> noiot -> excel -> nobom (d5 skipped)
+    assert_equal %w[ d1 d2 d3 d4 ].size, steps.size
+    assert_equal "No", steps.last[:answer]
+  end
+
+  test "decode_profile returns [] for a blank profile" do
+    assert_equal [], ContentConfig.decode_profile(nil)
+    assert_equal [], ContentConfig.decode_profile("")
+  end
 end
