@@ -1,0 +1,11 @@
+{
+  "segments": [
+    { "id": "meccanica", "label": "Meccanica" },
+    { "id": "elettronica", "label": "Elettronica" },
+    { "id": "precisione", "label": "Precisione" },
+    { "id": "lamiere-e-metalli", "label": "Lamiere e Metalli" },
+    { "id": "alimentare", "label": "Alimentare" },
+    { "id": "imballaggi-e-packaging", "label": "Imballaggi e Packaging" },
+    { "id": "gomma-e-plastica", "label": "Gomma e Plastica" }
+  ]
+}

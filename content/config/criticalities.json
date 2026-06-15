@@ -1,0 +1,17 @@
+{
+  "criticalities": [
+    { "id": 1, "label": "Tempi di produzione non raccolti" },
+    { "id": 2, "label": "Costi reali di produzione sconosciuti" },
+    { "id": 3, "label": "Date di consegna inaffidabili" },
+    { "id": 4, "label": "Fermi macchina non previsti ma costosi" },
+    { "id": 5, "label": "Manutenzione solo reattiva" },
+    { "id": 6, "label": "Setup e attrezzaggi non ottimizzati" },
+    { "id": 7, "label": "Poca/nessuna visibilità della direzione sulla produzione" },
+    { "id": 8, "label": "Produzione scollegata dal gestionale aziendale" },
+    { "id": 9, "label": "Segniamo ancora tutto su fogli Excel o carta" },
+    { "id": 10, "label": "Se manca una persona chiave, siamo fermi" },
+    { "id": 11, "label": "Distinte base generiche e non realistiche" },
+    { "id": 12, "label": "Scarti e rilavorazioni non analizzati" },
+    { "id": 13, "label": "Difficoltà a gestire le varianti in maniera strutturata" }
+  ]
+}
