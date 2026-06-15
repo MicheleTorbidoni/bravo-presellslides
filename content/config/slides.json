@@ -1,0 +1,59 @@
+{
+  "criticalities": [
+    {
+      "id": 1,
+      "label": "Tempi di produzione non raccolti",
+      "slides": [
+        {
+          "id": "crit1-slide1",
+          "type": "concept",
+          "title": "Un ciclo assistito e fluido.",
+          "body": null,
+          "asset": "criticality-1-concept.png",
+          "assetIsSegmentVariant": false
+        },
+        {
+          "id": "crit1-slide2",
+          "type": "screenshot",
+          "title": "Tempi disponibili da subito.",
+          "body": "Ogni fase di {{company_name}} viene tracciata senza sforzo.",
+          "asset": "criticality-1-screenshot.png",
+          "assetIsSegmentVariant": true
+        },
+        {
+          "id": "crit1-slide3",
+          "type": "sequence",
+          "title": "Come si costruisce il ciclo.",
+          "body": null,
+          "steps": [
+            { "asset": "criticality-1-step-1.png", "assetIsSegmentVariant": true },
+            { "asset": "criticality-1-step-2.png", "assetIsSegmentVariant": true },
+            { "asset": "criticality-1-step-3.png", "assetIsSegmentVariant": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "label": "Fermi macchina non previsti ma costosi",
+      "slides": [
+        {
+          "id": "crit4-slide1",
+          "type": "concept",
+          "title": "I fermi non sono più una sorpresa.",
+          "body": null,
+          "asset": "criticality-4-concept.png",
+          "assetIsSegmentVariant": false
+        },
+        {
+          "id": "crit4-slide2",
+          "type": "screenshot",
+          "title": "Ogni fermo, registrato e analizzato.",
+          "body": null,
+          "asset": "criticality-4-screenshot.png",
+          "assetIsSegmentVariant": true
+        }
+      ]
+    }
+  ]
+}

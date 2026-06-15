@@ -1,0 +1,9 @@
+{
+  "mappings": [
+    { "segment": "meccanica", "operationalProfile": "profilo-1", "criticalities": [1, 3, 4, 7, 12] },
+    { "segment": "meccanica", "operationalProfile": "profilo-2", "criticalities": [1, 4, 6, 11, 13] },
+    { "segment": "meccanica", "operationalProfile": "profilo-b", "criticalities": [2, 7, 8, 9] },
+    { "segment": "elettronica", "operationalProfile": "profilo-1", "criticalities": [1, 2, 3, 12, 13] },
+    { "segment": "elettronica", "operationalProfile": "profilo-b", "criticalities": [2, 7, 8, 9, 10] }
+  ]
+}

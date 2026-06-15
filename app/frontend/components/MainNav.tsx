@@ -3,6 +3,7 @@ import { Link, router, usePage } from "@inertiajs/react"
 import {
   ChevronsLeft,
   ChevronsRight,
+  ClipboardList,
   Home,
   LogOut,
   Menu,
@@ -39,6 +40,12 @@ const DEFAULT_NAV_ITEMS: NavItemDef[] = [
     icon: Home,
     label: "Home",
     match: (url) => url === "/" || url.startsWith("/dashboard"),
+  },
+  {
+    href: "/presale_sessions",
+    icon: ClipboardList,
+    label: "Sessioni",
+    match: (url) => url.startsWith("/presale_sessions"),
   },
 ]
 

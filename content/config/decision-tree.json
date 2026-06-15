@@ -1,0 +1,45 @@
+{
+  "start": "d1",
+  "questions": {
+    "d1": {
+      "id": "d1",
+      "text": "La produzione è Human Only?",
+      "answers": [
+        { "label": "Sì", "next": "d3" },
+        { "label": "No", "next": "d2" }
+      ]
+    },
+    "d2": {
+      "id": "d2",
+      "text": "Avete macchine IoT?",
+      "answers": [
+        { "label": "Sì", "next": "d3" },
+        { "label": "No", "next": "d3" }
+      ]
+    },
+    "d3": {
+      "id": "d3",
+      "text": "La produzione è gestita con...",
+      "answers": [
+        { "label": "Excel o carta", "next": "d4" },
+        { "label": "MRP (o ERP)", "next": "d4" }
+      ]
+    },
+    "d4": {
+      "id": "d4",
+      "text": "Gestite le Distinte Base?",
+      "answers": [
+        { "label": "Sì", "next": "d5" },
+        { "label": "No", "leaf": "profilo-b" }
+      ]
+    },
+    "d5": {
+      "id": "d5",
+      "text": "Che tipo di Distinta?",
+      "answers": [
+        { "label": "Semplice (1 livello)", "leaf": "profilo-1" },
+        { "label": "Multilivello", "leaf": "profilo-2" }
+      ]
+    }
+  }
+}
