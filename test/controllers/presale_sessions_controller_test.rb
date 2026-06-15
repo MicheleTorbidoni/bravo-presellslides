@@ -21,14 +21,52 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "creating a session adds a record and redirects to the index" do
+  test "creating a session adds a record and redirects into the setup flow" do
     sign_in
 
     assert_difference -> { @user.presale_sessions.count }, 1 do
       post presale_sessions_path
     end
 
-    assert_redirected_to presale_sessions_path
+    assert_redirected_to setup_presale_session_path(@user.presale_sessions.order(:created_at).last)
+  end
+
+  test "setup, profiling and result pages render for the owner" do
+    sign_in
+    session = presale_sessions(:one)
+
+    get setup_presale_session_path(session)
+    assert_response :success
+
+    get profiling_presale_session_path(session)
+    assert_response :success
+
+    get result_presale_session_path(session)
+    assert_response :success
+  end
+
+  test "the flow pages require authentication" do
+    session = presale_sessions(:one)
+
+    get setup_presale_session_path(session)
+    assert_redirected_to login_path
+  end
+
+  test "result renders for a session with a mapped segment and profile" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
+    get result_presale_session_path(session)
+    assert_response :success
+  end
+
+  test "a user cannot open another user's session flow" do
+    sign_in
+    other_session = users(:two).presale_sessions.create!
+
+    get setup_presale_session_path(other_session)
+    assert_response :not_found
   end
 
   test "update persists fields via the auto-save endpoint and returns ok" do

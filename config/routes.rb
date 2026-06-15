@@ -11,7 +11,13 @@ Rails.application.routes.draw do
   get "dashboard", to: "dashboard#show", as: :dashboard
   get "settings",  to: "settings#show",  as: :settings
 
-  resources :presale_sessions, only: %i[ index create update ]
+  resources :presale_sessions, only: %i[ index create update ] do
+    member do
+      get :setup
+      get :profiling
+      get :result
+    end
+  end
 
   namespace :admin do
     root to: redirect("/admin/users")
