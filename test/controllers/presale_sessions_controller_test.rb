@@ -87,6 +87,50 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "present hands over the slide definitions and the session segment" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
+    get present_presale_session_path(session)
+    assert_response :success
+    # No Minitest props helper ships with the gem; the initial page embeds the
+    # Inertia payload (HTML-escaped JSON) in the root element's data-page attribute.
+    page_json = response.body[/data-page="([^"]*)"/, 1]
+    props = JSON.parse(CGI.unescapeHTML(page_json))["props"]
+
+    assert_equal "meccanica", props.dig("session", "segment")
+    # slides.json defines slides for criticalities 1 and 4, keyed by id.
+    assert props["slidesByCriticality"].key?("1")
+    assert_equal "concept", props.dig("slidesByCriticality", "1", 0, "type")
+    assert_equal [], props["capturedQuestions"]
+  end
+
+  test "update persists captured questions via the auto-save endpoint" do
+    sign_in
+    session = presale_sessions(:one)
+
+    question = {
+      id: "q_abc123",
+      text: "Quanto tempo richiede l'onboarding?",
+      criticality_id: 1,
+      slide_id: "crit1-slide2",
+      asked_at: "2026-06-16T10:00:00Z"
+    }
+
+    patch presale_session_path(session),
+          params: { captured_questions: [ question ] },
+          as: :json
+
+    assert_response :success
+    stored = session.reload.captured_questions
+    assert_equal 1, stored.length
+    assert_equal "Quanto tempo richiede l'onboarding?", stored.first["text"]
+    assert_equal 1, stored.first["criticality_id"]
+    assert_equal "crit1-slide2", stored.first["slide_id"]
+    assert_equal "q_abc123", stored.first["id"]
+  end
+
   test "present requires authentication" do
     session = presale_sessions(:one)
 

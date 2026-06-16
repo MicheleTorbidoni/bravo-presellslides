@@ -1,7 +1,10 @@
 // Fixed closing page, identical for every segment/profile — only the prospect's
 // company/contact names change. Reached from anywhere via the `C` shortcut. The
 // "Vai al debrief" handoff is a placeholder until the debrief lands in Milestone 6.
-// Autonomous UI, full-bleed, raw Tailwind.
+// Autonomous UI, raw Tailwind. Rendered inside the shared 16:9 Stage so it matches
+// the hub and the slide flow shown to the prospect.
+import { Stage } from "./Stage"
+
 export function Closing({
   companyName,
   contactName,
@@ -15,8 +18,9 @@ export function Closing({
   const contact = contactName?.trim()
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-slate-950 px-8 py-16 text-center text-white">
-      <div className="w-full max-w-3xl">
+    <Stage>
+      <div className="flex h-full w-full flex-col items-center justify-center px-8 py-16 text-center">
+        <div className="w-full max-w-3xl">
         <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
           Grazie{contact ? `, ${contact}` : ""}.
         </h1>
@@ -42,7 +46,8 @@ export function Closing({
             Torna all'hub
           </button>
         </div>
+        </div>
       </div>
-    </div>
+    </Stage>
   )
 }

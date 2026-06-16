@@ -65,7 +65,9 @@ class PresaleSessionsController < ApplicationController
       session: present_session(@session),
       criticalities: relevant.presence || ContentConfig.criticalities,
       prefiltered: relevant.any?,
-      discussedCriticalities: @session.discussed_criticalities
+      discussedCriticalities: @session.discussed_criticalities,
+      slidesByCriticality: slides_by_criticality,
+      capturedQuestions: @session.captured_questions
     }
   end
 
@@ -100,14 +102,24 @@ class PresaleSessionsController < ApplicationController
       )
     end
 
-    # Minimal slice for the prospect-facing surface: only what the hub and the
-    # closing page need (the closing page interpolates the prospect's names).
+    # Minimal slice for the prospect-facing surface: the hub + closing page need
+    # the names, and the slide player needs the segment to build asset URLs.
     def present_session(session)
       {
         id: session.id,
         company_name: session.company_name,
-        contact_name: session.contact_name
+        contact_name: session.contact_name,
+        segment: session.segment
       }
+    end
+
+    # The slide definitions from slides.json, indexed by criticality id, so the
+    # player can look up the slides for whichever criticality the operator enters.
+    # Criticalities with no entry simply have no slides (the player shows a
+    # navigable placeholder).
+    def slides_by_criticality
+      ContentConfig.slides.index_by { |c| c[:id] }
+                   .transform_values { |c| c[:slides] }
     end
 
     def session_params
@@ -119,7 +131,8 @@ class PresaleSessionsController < ApplicationController
         :segment,
         :operational_profile,
         :status,
-        discussed_criticalities: []
+        discussed_criticalities: [],
+        captured_questions: [ :id, :text, :criticality_id, :slide_id, :asked_at ]
       )
     end
 end
