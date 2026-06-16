@@ -110,7 +110,11 @@ export default function PresaleSessionResult({
             >
               Torna alle sessioni
             </Button>
-            <Button disabled title="Arriva nel Milestone 3">
+            <Button
+              onClick={() =>
+                router.visit(`/presale_sessions/${session.id}/present`)
+              }
+            >
               Avvia presentazione
             </Button>
           </div>

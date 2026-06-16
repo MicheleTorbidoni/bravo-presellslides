@@ -16,6 +16,7 @@ Rails.application.routes.draw do
       get :setup
       get :profiling
       get :result
+      get :present
     end
   end
 

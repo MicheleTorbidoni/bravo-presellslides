@@ -1,5 +1,11 @@
 class PresaleSessionsController < ApplicationController
-  before_action :set_session, only: %i[ setup profiling result update ]
+  # The auto-save endpoint is hit with a flat JSON body via a raw fetch (see
+  # app/frontend/lib/api.ts). Disable Rails' ParamsWrapper so it doesn't also
+  # nest those fields under a phantom :presale_session key, which would otherwise
+  # show up as an "Unpermitted parameters" warning on every save.
+  wrap_parameters format: []
+
+  before_action :set_session, only: %i[ setup profiling result present update ]
 
   # Sessions area. Lists the current user's pre-sale sessions; the full archive
   # (search, delete) arrives in a later milestone.
@@ -45,6 +51,24 @@ class PresaleSessionsController < ApplicationController
     }
   end
 
+  # Prospect-facing context (first custom UI shown to the prospect): the criticality
+  # hub + flow loop + closing page. Single Inertia page that switches views
+  # client-side. Hands over the resolved criticality subset (or the full list of 13
+  # as a predictable fallback when the segment x profile combo has no mapping) plus
+  # the criticalities already discussed, so completed ones render as such.
+  def present
+    relevant = ContentConfig.criticalities_for(
+      segment: @session.segment,
+      operational_profile: @session.operational_profile
+    )
+    render inertia: "Present", props: {
+      session: present_session(@session),
+      criticalities: relevant.presence || ContentConfig.criticalities,
+      prefiltered: relevant.any?,
+      discussedCriticalities: @session.discussed_criticalities
+    }
+  end
+
   # Auto-save sink. Called via a raw fetch (not the Inertia router) as the
   # operator fills the session, so a bare head :ok is the correct response here —
   # no Inertia page or redirect.
@@ -76,8 +100,20 @@ class PresaleSessionsController < ApplicationController
       )
     end
 
+    # Minimal slice for the prospect-facing surface: only what the hub and the
+    # closing page need (the closing page interpolates the prospect's names).
+    def present_session(session)
+      {
+        id: session.id,
+        company_name: session.company_name,
+        contact_name: session.contact_name
+      }
+    end
+
     def session_params
-      params.permit(
+      # :id is the route param, not a model attribute — drop it before permitting
+      # so it isn't logged as an unpermitted parameter on every auto-save.
+      params.except(:id).permit(
         :company_name,
         :contact_name,
         :segment,

@@ -69,6 +69,39 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "present renders for a profiled session with a mapped segment and profile" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
+    get present_presale_session_path(session)
+    assert_response :success
+  end
+
+  test "present renders in the fallback case with no mapping" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "alimentare", operational_profile: "unmapped-profile")
+
+    get present_presale_session_path(session)
+    assert_response :success
+  end
+
+  test "present requires authentication" do
+    session = presale_sessions(:one)
+
+    get present_presale_session_path(session)
+    assert_redirected_to login_path
+  end
+
+  test "a user cannot open another user's present surface" do
+    sign_in
+    other_session = users(:two).presale_sessions.create!
+
+    get present_presale_session_path(other_session)
+    assert_response :not_found
+  end
+
   test "update persists fields via the auto-save endpoint and returns ok" do
     sign_in
     session = presale_sessions(:one)
@@ -84,6 +117,20 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Nuova Azienda", session.company_name
     assert_equal "elettronica", session.segment
     assert_equal [ 2, 7 ], session.discussed_criticalities
+  end
+
+  test "update accepts a flat JSON body (matching the frontend auto-save)" do
+    sign_in
+    session = presale_sessions(:one)
+
+    patch presale_session_path(session),
+          params: { company_name: "JSON Co", discussed_criticalities: [ 4 ] },
+          as: :json
+
+    assert_response :success
+    session.reload
+    assert_equal "JSON Co", session.company_name
+    assert_equal [ 4 ], session.discussed_criticalities
   end
 
   test "a user cannot update another user's session" do
