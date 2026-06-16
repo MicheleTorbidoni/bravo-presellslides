@@ -5,3 +5,6 @@
 /* bm-design-system:start */
 @import "../../frontend/styles/design-system.css";
 /* bm-design-system:end */
+
+/* Autonomous tokens for the prospect-facing presentation surfaces (see file). */
+@import "../../frontend/styles/prospect.css";

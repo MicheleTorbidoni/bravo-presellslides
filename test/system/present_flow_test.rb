@@ -14,8 +14,12 @@ class PresentFlowTest < ApplicationSystemTestCase
     )
 
     visit login_path
-    fill_in "email", with: @user.email
-    fill_in "password", with: "password"
+    # Capybara's fill_in doesn't reliably trigger React's onChange on these
+    # controlled inputs in headless Chrome — the value intermittently doesn't
+    # stick, so submit hits HTML5 "fill this field" validation. Set the value via
+    # the native setter + input event instead (see react_fill).
+    react_fill "email", @user.email
+    react_fill "password", "password"
     # Use the JS-dispatched click (see react_click) — native Selenium clicks on
     # this React submit button are flaky in headless Chrome and intermittently
     # fail to submit, leaving us stranded on /login.
@@ -33,6 +37,21 @@ class PresentFlowTest < ApplicationSystemTestCase
   # validate the full feature behaviour; real browsers fire the handlers fine.
   def react_click(text)
     page.execute_script("arguments[0].click()", find("button", text: text))
+  end
+
+  # Set a React-controlled <input> value reliably in headless Chrome: use the
+  # native value setter then dispatch an input event so React's onChange fires
+  # (Capybara's fill_in alone is flaky here). `field` matches by name or id.
+  def react_fill(field, value)
+    input = find("input[name='#{field}'], ##{field}", match: :first)
+    page.execute_script(<<~JS, input, value)
+      const el = arguments[0]
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype, "value"
+      ).set
+      setter.call(el, arguments[1])
+      el.dispatchEvent(new Event("input", { bubbles: true }))
+    JS
   end
 
   # The capture overlay uses an uncontrolled-feeling React textarea; set the value
@@ -57,14 +76,8 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_text "Tempi di produzione non raccolti"
     page.save_screenshot("tmp/screenshots/present-hub.png")
 
-    # Nothing selected yet → the start button is disabled.
-    assert_button "Avvia presentazione", disabled: true
-
-    # Select two criticalities, then start the presentation.
+    # Clicking a criticality pill starts its flow immediately (no separate button).
     react_click "Tempi di produzione non raccolti"
-    react_click "Date di consegna inaffidabili"
-    assert_button "Avvia presentazione", disabled: false
-    react_click "Avvia presentazione"
 
     # The real slide player renders the first criticality's first slide (concept),
     # with the prospect's name interpolated into the screenshot slide further on.
@@ -89,8 +102,6 @@ class PresentFlowTest < ApplicationSystemTestCase
       )
     end
     assert_text "Dove fa più difficoltà la tua azienda?"
-    # One criticality discussed, another still pending → "Continua" is enabled.
-    assert_button "Continua", disabled: false
 
     # The completion is persisted on the session.
     assert_equal [ 1 ], @session.reload.discussed_criticalities

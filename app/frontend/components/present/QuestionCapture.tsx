@@ -32,10 +32,10 @@ export function QuestionCapture({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6">
-      <div className="w-full max-w-2xl rounded-2xl bg-slate-900 p-8 shadow-2xl ring-1 ring-slate-700">
-        <h2 className="text-xl font-semibold text-white">Cattura domanda</h2>
-        <p className="mt-1 text-sm text-slate-400">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-bm-slate/70 px-6 font-bm">
+      <div className="w-full max-w-2xl rounded-2xl bg-bm-white p-8 shadow-2xl">
+        <h2 className="text-xl font-bold text-bm-slate">Cattura domanda</h2>
+        <p className="mt-1 text-sm text-bm-slate/60">
           La domanda verrà salvata e collegata alla slide corrente.
         </p>
 
@@ -47,14 +47,14 @@ export function QuestionCapture({
           onKeyDown={onKeyDown}
           rows={4}
           placeholder="Scrivi la domanda del prospect…"
-          className="mt-5 w-full resize-none rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-base text-white placeholder:text-slate-600 focus:border-sky-500 focus:outline-none"
+          className="mt-5 w-full resize-none rounded-lg border border-bm-slate/25 bg-bm-white px-4 py-3 text-base text-bm-slate placeholder:text-bm-slate/40 focus:border-bm-green focus:outline-none"
         />
 
         <div className="mt-6 flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full px-5 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:text-white"
+            className="rounded-full px-5 py-2.5 text-sm font-semibold text-bm-slate/70 transition-colors hover:text-bm-slate"
           >
             Annulla
           </button>
@@ -62,7 +62,7 @@ export function QuestionCapture({
             type="button"
             onClick={save}
             disabled={!canSave}
-            className="rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-slate-950 transition-opacity enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-full bg-bm-green px-6 py-2.5 text-sm font-bold text-bm-white transition-opacity enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Salva domanda
           </button>
