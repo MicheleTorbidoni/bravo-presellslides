@@ -1,0 +1,19 @@
+/* Autonomous design tokens for the prospect-facing presentation surfaces (hub,
+ * slide player, closing). These are SEPARATE from the template design system —
+ * the present/ components must not import template tokens. Values derive from the
+ * Bravo Manufacturing Figma file (01--Funnel--Pre-sale-Meeting--1a-).
+ *
+ * Tokens are prefixed `bm-` so Tailwind v4 emits utilities like `bg-bm-green`,
+ * `text-bm-slate`, `font-bm` without colliding with the template namespace
+ * (page/surface/ink-*). The Outfit webfont is loaded via a <link> in the layout
+ * head (app/views/layouts/application.html.erb). */
+@theme {
+  --color-bm-green: #7aad1a;
+  --color-bm-green-bright: #7ac142;
+  --color-bm-amber: #f7b307;
+  --color-bm-slate: #5f677f;
+  --color-bm-grey: #eeeeee;
+  --color-bm-white: #ffffff;
+
+  --font-bm: "Outfit", ui-sans-serif, system-ui, sans-serif;
+}

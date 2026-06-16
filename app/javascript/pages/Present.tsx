@@ -57,7 +57,6 @@ export default function Present({
   capturedQuestions: CapturedQuestion[]
 }) {
   const [view, setView] = useState<View>({ name: "hub" })
-  const [selected, setSelected] = useState<Set<number>>(new Set())
   const [discussed, setDiscussed] = useState<number[]>(discussedCriticalities)
   // Ephemeral position within the current flow: which slide, and which step of a
   // sequence slide. Reset every time a flow is entered.
@@ -172,25 +171,12 @@ export default function Present({
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [goClosing, advance, back, view, questionOpen])
 
-  function toggle(id: number) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  // Start (or continue) with the first selected criticality not yet discussed,
-  // resetting the flow position to the first slide/step.
-  function start() {
-    const nextId = criticalities.find(
-      (c) => selected.has(c.id) && !discussed.includes(c.id),
-    )?.id
-    if (nextId != null) {
-      setPosition({ slideIndex: 0, stepIndex: 0 })
-      setView({ name: "flow", criticalityId: nextId })
-    }
+  // Clicking a criticality pill starts its flow immediately (no separate "start"
+  // button) — with 4-5 relevant criticalities per set they all fit on the hub.
+  // Already-discussed criticalities can be re-entered. Resets the flow position.
+  function pick(id: number) {
+    setPosition({ slideIndex: 0, stepIndex: 0 })
+    setView({ name: "flow", criticalityId: id })
   }
 
   // Persist a captured question (auto-save), bound to the current slide/criticality.
@@ -228,11 +214,9 @@ export default function Present({
       {view.name === "hub" && (
         <Hub
           criticalities={criticalities}
-          selected={selected}
           discussed={discussed}
           prefiltered={prefiltered}
-          onToggle={toggle}
-          onStart={start}
+          onPick={pick}
         />
       )}
 

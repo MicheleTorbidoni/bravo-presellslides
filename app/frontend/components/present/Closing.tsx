@@ -1,9 +1,11 @@
 // Fixed closing page, identical for every segment/profile — only the prospect's
 // company/contact names change. Reached from anywhere via the `C` shortcut. The
 // "Vai al debrief" handoff is a placeholder until the debrief lands in Milestone 6.
-// Autonomous UI, raw Tailwind. Rendered inside the shared 16:9 Stage so it matches
-// the hub and the slide flow shown to the prospect.
+// Autonomous UI, raw Tailwind, Bravo tokens (bm-*). Figma veste (node 67-32):
+// slate stage, centred white title + body (Outfit), centred logo. Rendered inside
+// the shared 16:9 Stage; sizes use cqw so they scale with the stage.
 import { Stage } from "./Stage"
+import { Logo } from "./Logo"
 
 export function Closing({
   companyName,
@@ -18,36 +20,42 @@ export function Closing({
   const contact = contactName?.trim()
 
   return (
-    <Stage>
-      <div className="flex h-full w-full flex-col items-center justify-center px-8 py-16 text-center">
-        <div className="w-full max-w-3xl">
-        <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+    <Stage className="bg-bm-slate text-bm-white">
+      <div className="flex h-full w-full flex-col items-center justify-center px-[8cqw] text-center">
+        <h1 className="font-bm text-[4.6cqw] leading-[1.05] font-bold tracking-tight text-bm-white">
           Grazie{contact ? `, ${contact}` : ""}.
         </h1>
-        <p className="mt-6 text-lg text-slate-300">
+        <p className="mt-[1.6cqw] max-w-[70cqw] text-[1.9cqw] leading-snug text-bm-white/90">
           Abbiamo visto insieme come Bravo Manufacturing può supportare {company}.
           Ti invieremo un recap di quanto discusso.
         </p>
 
-        <div className="mt-14 flex flex-col items-center gap-4">
+        <div className="mt-[4cqw] flex flex-col items-center gap-[1.4cqw]">
           <button
             type="button"
             disabled
             title="Arriva nel Milestone 6"
-            className="cursor-not-allowed rounded-full bg-white px-10 py-4 text-lg font-semibold text-slate-950 opacity-40"
+            className="-skew-x-12 cursor-not-allowed bg-bm-white/20 px-[2.8cqw] py-[1cqw] opacity-60"
           >
-            Vai al debrief
+            <span className="block skew-x-12 text-[1.5cqw] font-bold tracking-tight text-bm-white">
+              Vai al debrief
+            </span>
           </button>
           <button
             type="button"
             onClick={onBack}
-            className="text-sm text-slate-400 underline-offset-4 transition-colors hover:text-slate-200 hover:underline"
+            className="text-[1.1cqw] text-bm-white/70 underline-offset-4 transition-colors hover:text-bm-white hover:underline"
           >
             Torna all'hub
           </button>
         </div>
-        </div>
       </div>
+
+      {/* Bravo Manufacturing logo — centred per Figma (node 67-32). */}
+      <Logo
+        variant="white"
+        className="absolute bottom-[5cqw] left-1/2 h-[2.6cqw] w-auto -translate-x-1/2"
+      />
     </Stage>
   )
 }

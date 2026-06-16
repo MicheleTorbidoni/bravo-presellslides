@@ -7,6 +7,7 @@
 // "chrome + transparent PNG" convention arrive in Milestone 5.
 import { useState } from "react"
 import { Stage } from "./Stage"
+import { Logo } from "./Logo"
 
 export type SlideStep = {
   asset: string
@@ -52,8 +53,8 @@ function SlideImage({ src, name }: { src: string; name: string }) {
   const [failed, setFailed] = useState(false)
   if (failed) {
     return (
-      <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-800/50">
-        <span className="px-4 text-center font-mono text-sm text-slate-500">
+      <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-bm-white/40 bg-bm-white/10">
+        <span className="px-4 text-center font-mono text-[1.1cqw] text-bm-white/70">
           {name}
         </span>
       </div>
@@ -85,12 +86,7 @@ export function SlidePlayer({
   onAdvanceClick: () => void
 }) {
   return (
-    <Stage onClick={onAdvanceClick}>
-      {/* Bravo Manufacturing logo — placeholder placement, refined in M5. */}
-      <div className="absolute right-6 top-5 z-10 text-sm font-semibold tracking-wide text-slate-400">
-        Bravo Manufacturing
-      </div>
-
+    <Stage onClick={onAdvanceClick} className="bg-bm-green text-bm-white">
       {slide ? (
         <SlideBody
           slide={slide}
@@ -100,16 +96,22 @@ export function SlidePlayer({
           contactName={contactName}
         />
       ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center px-12 text-center">
-          <h1 className="text-3xl font-semibold text-white">
+        <div className="flex h-full w-full flex-col items-center justify-center px-[5.2cqw] text-center">
+          <h1 className="font-bm text-[3.2cqw] font-bold text-bm-white">
             Contenuto non ancora disponibile
           </h1>
-          <p className="mt-4 text-slate-400">
+          <p className="mt-[1cqw] text-[1.4cqw] text-bm-white/80">
             Questa criticità non ha ancora slide. Premi → per concludere il
             flusso.
           </p>
         </div>
       )}
+
+      {/* Bravo Manufacturing logo — bottom-left per Figma (node 62-663). */}
+      <Logo
+        variant="white"
+        className="absolute bottom-[2.4cqw] left-[5.2cqw] z-10 h-[3.4cqw] w-auto"
+      />
     </Stage>
   )
 }
@@ -143,13 +145,17 @@ function SlideBody({
   }
 
   return (
-    <div className="flex h-full w-full flex-col px-[6%] py-[5%]">
-      <h1 className="max-w-[80%] text-4xl font-semibold tracking-tight text-white">
+    <div className="flex h-full w-full flex-col px-[5.2cqw] pt-[2.6cqw] pb-[7cqw]">
+      <h1 className="max-w-[85%] font-bm text-[4.2cqw] leading-[1.05] font-bold tracking-tight text-bm-white">
         {title}
       </h1>
-      {body && <p className="mt-3 max-w-[70%] text-lg text-slate-300">{body}</p>}
+      {body && (
+        <p className="mt-[1cqw] max-w-[70%] text-[1.7cqw] text-bm-white/90">
+          {body}
+        </p>
+      )}
 
-      <div className="mt-6 flex min-h-0 flex-1 items-center justify-center">
+      <div className="mt-[1.5cqw] flex min-h-0 flex-1 items-center justify-center">
         {image && (
           <SlideImage
             src={assetUrl(image.asset, image.variant, segment)}
@@ -159,13 +165,13 @@ function SlideBody({
       </div>
 
       {slide.type === "sequence" && slide.steps && slide.steps.length > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
+        <div className="mt-[1.2cqw] flex items-center justify-center gap-[0.7cqw]">
           {slide.steps.map((_, i) => (
             <span
               key={i}
               className={[
-                "h-2 w-2 rounded-full transition-colors",
-                i === stepIndex ? "bg-sky-400" : "bg-slate-700",
+                "size-[0.9cqw] rounded-full transition-colors",
+                i === stepIndex ? "bg-bm-white" : "bg-bm-white/40",
               ].join(" ")}
             />
           ))}
