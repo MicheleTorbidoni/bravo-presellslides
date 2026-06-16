@@ -20,6 +20,14 @@ Rails.application.routes.draw do
     end
   end
 
+  # Serves the prospect-facing slide bitmaps at runtime from content/assets/
+  # (which is outside the web root). The slide player builds these URLs from the
+  # session's segment + the asset name in slides.json — see PresentationAssetsController.
+  get "presentation_assets/:segment/:filename",
+      to: "presentation_assets#show",
+      as: :presentation_asset,
+      constraints: { filename: /[^\/]+\.png/ }
+
   namespace :admin do
     root to: redirect("/admin/users")
     get "design-system", to: "design_system#show", as: :design_system

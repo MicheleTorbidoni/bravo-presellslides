@@ -35,6 +35,20 @@ class PresentFlowTest < ApplicationSystemTestCase
     page.execute_script("arguments[0].click()", find("button", text: text))
   end
 
+  # The capture overlay uses an uncontrolled-feeling React textarea; set the value
+  # and dispatch an input event so React's onChange picks it up reliably in headless.
+  def fill_in_question(text)
+    textarea = find("textarea")
+    page.execute_script(<<~JS, textarea, text)
+      const el = arguments[0]
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype, "value"
+      ).set
+      setter.call(el, arguments[1])
+      el.dispatchEvent(new Event("input", { bubbles: true }))
+    JS
+  end
+
   test "operator runs the hub loop and reaches the closing page" do
     visit present_presale_session_path(@session)
 
@@ -52,19 +66,41 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_button "Avvia presentazione", disabled: false
     react_click "Avvia presentazione"
 
-    # Placeholder flow for the first selected criticality.
-    assert_text "Il player di slide arriva nel Milestone 4"
-    assert_text "Tempi di produzione non raccolti"
-    page.save_screenshot("tmp/screenshots/present-flow.png")
+    # The real slide player renders the first criticality's first slide (concept),
+    # with the prospect's name interpolated into the screenshot slide further on.
+    assert_text "Un ciclo assistito e fluido."
+    page.save_screenshot("tmp/screenshots/present-slide-concept.png")
 
-    # Completing the flow returns to the hub.
-    react_click "Concludi flusso"
+    # Capture a question with `Q`, type it, and save it — it persists on the session
+    # bound to the current slide.
+    page.execute_script(
+      "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }))"
+    )
+    assert_text "Cattura domanda"
+    fill_in_question("È compatibile col nostro gestionale?")
+    react_click "Salva domanda"
+    assert_no_text "Cattura domanda"
+
+    # Step through every slide/step with the right arrow until the flow completes
+    # and we return to the hub (concept → screenshot → sequence ×3 steps).
+    8.times do
+      page.execute_script(
+        "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))"
+      )
+    end
     assert_text "Dove fa più difficoltà la tua azienda?"
     # One criticality discussed, another still pending → "Continua" is enabled.
     assert_button "Continua", disabled: false
 
     # The completion is persisted on the session.
     assert_equal [ 1 ], @session.reload.discussed_criticalities
+
+    # The captured question persisted, bound to criticality 1 and a slide.
+    questions = @session.reload.captured_questions
+    assert_equal 1, questions.length
+    assert_equal "È compatibile col nostro gestionale?", questions.first["text"]
+    assert_equal 1, questions.first["criticality_id"]
+    assert questions.first["slide_id"].present?
 
     # The `C` shortcut jumps to the closing page from anywhere, with the
     # prospect's names interpolated. Dispatch the keydown on window directly so it

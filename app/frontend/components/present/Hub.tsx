@@ -1,7 +1,8 @@
 // Prospect-facing criticality hub. Autonomous UI — no template design system,
-// no AppShell, raw Tailwind only. Full-bleed so it reads as a clean presentation
-// surface under native fullscreen (F11).
+// no AppShell, raw Tailwind only. Rendered inside the shared 16:9 Stage so it
+// matches the slide flow and closing page shown to the prospect.
 import { Check } from "lucide-react"
+import { Stage } from "./Stage"
 
 export type Criticality = { id: number; label: string }
 
@@ -26,11 +27,12 @@ export function Hub({
   const anyDiscussed = criticalities.some((c) => discussed.includes(c.id))
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-slate-950 px-8 py-16 text-white">
-      <div className="w-full max-w-5xl text-center">
-        <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-          Dove fa più difficoltà la tua azienda?
-        </h1>
+    <Stage>
+      <div className="flex h-full w-full flex-col items-center justify-center px-8 py-16">
+        <div className="w-full max-w-5xl text-center">
+          <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+            Dove fa più difficoltà la tua azienda?
+          </h1>
         {!prefiltered && (
           <p className="mt-4 text-base text-slate-400">
             Scegli liberamente i temi più rilevanti tra quelli disponibili.
@@ -77,8 +79,9 @@ export function Hub({
             Premi <kbd className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-slate-300">C</kbd>{" "}
             in qualsiasi momento per chiudere la conversazione.
           </p>
+          </div>
         </div>
       </div>
-    </div>
+    </Stage>
   )
 }
