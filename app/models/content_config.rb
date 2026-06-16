@@ -73,6 +73,33 @@ module ContentConfig
       steps
     end
 
+    # Enumerates every complete operational profile (leaf path) of the decision
+    # tree as a "-"-joined token string, in depth-first order. These are exactly
+    # the operational_profile values the profiling UI can produce (it walks the
+    # tree until an answer has no :next — see Profiling.tsx). Used to build the
+    # full set of (segment x profile) mappings and to assert their coverage.
+    def operational_profiles
+      tree = decision_tree
+      profiles = []
+
+      walk = lambda do |question_id, tokens|
+        question = tree.dig(:questions, question_id.to_sym)
+        return if question.nil?
+
+        question[:answers].each do |answer|
+          path = tokens + [ answer[:code] ]
+          if answer[:next]
+            walk.call(answer[:next], path)
+          else
+            profiles << path.join("-")
+          end
+        end
+      end
+
+      walk.call(tree[:start], [])
+      profiles
+    end
+
     # Clears the in-memory cache. Mainly useful in tests.
     def reload!
       @cache = {}

@@ -4,8 +4,8 @@ class PresentFlowTest < ApplicationSystemTestCase
   setup do
     @user = users(:one)
     @session = presale_sessions(:one)
-    # A profiled session whose (segment x profile) resolves to a known subset
-    # (criticalities 1, 3, 4, 7, 12 per content/config/mappings.json).
+    # A profiled session whose (segment x profile) resolves to the meccanica
+    # subset (criticalities 1, 2, 3, 4, 7, 8, 10 per content/config/mappings.json).
     @session.update!(
       company_name: "Acme Spa",
       contact_name: "Mario Rossi",
