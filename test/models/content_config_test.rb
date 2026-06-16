@@ -47,8 +47,48 @@ class ContentConfigTest < ActiveSupport::TestCase
       operational_profile: "ho-excel-bom-bom1"
     )
 
-    assert_equal [ 1, 3, 4, 7, 12 ], resolved.map { |c| c[:id] }
+    assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], resolved.map { |c| c[:id] }
     assert(resolved.all? { |c| c[:label].present? })
+  end
+
+  test "the criticality subset is the same across all operational profiles of a segment" do
+    subsets = ContentConfig.operational_profiles.map do |profile|
+      ContentConfig.criticalities_for(
+        segment: "meccanica",
+        operational_profile: profile
+      ).map { |c| c[:id] }
+    end
+
+    assert_equal 1, subsets.uniq.size, "expected identical copies across profiles for now"
+    assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], subsets.first
+  end
+
+  test "operational_profiles enumerates every decision-tree leaf path" do
+    profiles = ContentConfig.operational_profiles
+
+    assert_equal 18, profiles.size
+    assert_equal profiles.size, profiles.uniq.size
+    assert_includes profiles, "ho-excel-bom-bom1"
+    assert_includes profiles, "mixed-noiot-mrp-nobom"
+    # every enumerated profile decodes cleanly back through the tree
+    assert(profiles.all? { |p| ContentConfig.decode_profile(p).any? })
+  end
+
+  test "every segment x operational profile combination has a non-empty mapping" do
+    segment_ids = ContentConfig.segments.map { |s| s[:id] }
+    profiles = ContentConfig.operational_profiles
+
+    assert_equal segment_ids.size * profiles.size, ContentConfig.mappings.size
+
+    segment_ids.each do |segment|
+      profiles.each do |profile|
+        resolved = ContentConfig.criticalities_for(
+          segment: segment,
+          operational_profile: profile
+        )
+        assert resolved.any?, "no criticalities for #{segment} x #{profile}"
+      end
+    end
   end
 
   test "criticalities_for returns [] for an unmapped combination (fallback)" do
