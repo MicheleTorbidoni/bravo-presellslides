@@ -10,7 +10,7 @@ L'app combina tre dimensioni per comporre la sessione: il **segmento industriale
 
 La call avviene in streaming (Zoom/Meet) con condivisione schermo gestita via **OBS Studio**: è OBS a decidere quando mostrare l'app al prospect, quindi le schermate di profilazione vengono completate *prima* di avviare la condivisione. La sessione si chiude con un debrief e un recap inviabile via email al prospect; le sessioni vengono archiviate per essere riprese, ripulite e re-inviate in un secondo momento.
 
-L'app è costruita sul template **Build New** (Rails 8 + React 19 via Inertia.js + Tailwind CSS v4 + PostgreSQL) ed è organizzata in 6 milestone incrementali, ognuno dei quali consegna funzionalità visibili e provabili in browser.
+L'app è costruita sul template **Build New** (Rails 8 + React 19 via Inertia.js + Tailwind CSS v4 + PostgreSQL) ed è organizzata in 7 milestone incrementali, ognuno dei quali consegna funzionalità visibili e provabili in browser.
 
 ---
 
@@ -159,7 +159,7 @@ Introduce il primo contesto UI **custom** (mostrato al prospect): la schermata c
 
 - Il rendering effettivo delle slide di contenuto (milestone 4) — qui basta poter entrare/uscire dal flusso anche con un player segnaposto.
 - La cattura domande (milestone 4).
-- Lo styling definitivo dai token Figma — comportamento funzionale prima, rifinitura visiva dopo.
+- Lo styling definitivo dai token Figma — comportamento funzionale prima, rifinitura visiva dopo (milestone 5).
 - Riordino drag&drop, timer per criticità.
 
 ### Fatto quando
@@ -182,10 +182,11 @@ Il cuore della presentazione: il player di slide a tutto schermo e la cattura de
 - **Navigazione tastiera e click**: → / click = avanti, ← = indietro, `F`/`F11` = toggle fullscreen, `Q` = apre la cattura domanda.
 - Possibilità di **saltare a criticità successive** e di raggiungere la **pagina di chiusura** via scorciatoia.
 - **Cattura domanda**: la scorciatoia `Q` apre un **overlay minimale** con campo di testo libero; alla conferma la domanda viene **salvata (persistita, auto-save)** e legata alla slide/criticità corrente; si possono catturare più domande.
-- Logo Bravo Manufacturing presente nelle slide (collocazione/stile rifiniti in fase Figma).
+- Logo Bravo Manufacturing presente nelle slide (collocazione/stile rifiniti in milestone 5).
 
 ### Cosa il milestone 4 NON include
 
+- Lo stile Figma definitivo delle slide e i template per tipo (milestone 5) — qui la resa è funzionale, con placeholder.
 - La modifica/cancellazione delle domande durante la presentazione — l'editing avviene dopo, nel debrief/archivio.
 - Transizioni/animazioni avanzate oltre la sequenza di step, video/audio embeddati, telestrator (disegno sulle slide), presenter view separata.
 - Il pulsante a schermo per la cattura domanda: si usa **solo** la scorciatoia `Q`.
@@ -196,7 +197,32 @@ Con contenuti placeholder, l'operatore riproduce la presentazione di una critici
 
 ---
 
-## Milestone 5 — Debrief & email recap
+## Milestone 5 — Stile Figma & template slide
+
+Veste grafica definitiva delle superfici mostrate al prospect: applica i token e i layout di Figma ai contesti UI custom di M3 e M4 (hub, pagina di chiusura, player slide) **senza cambiarne il comportamento**. Introduce la convenzione "chrome stilizzato + contenuto PNG trasparente" che separa la cornice riutilizzabile (titolo, body, logo, sfondo) dal contenuto visivo verticalizzato per segmento.
+
+### Cosa viene costruito
+
+- **Token e primitive Figma autonome** per il contesto prospect (colori, tipografia, spaziature, logo Bravo Manufacturing), separate dal design system del template.
+- **Template stilizzati per i 3 tipi di slide** (`concept`, `screenshot`, `sequence`): ogni tipo ha una cornice Figma con contenitore titolo, area body opzionale e collocazione logo.
+- **Modello "chrome + contenuto PNG"**: titolo e body sono **testo live** nella cornice React (con sostituzione `{{company_name}}` / `{{contact_name}}`); il contenuto visivo è una **PNG trasparente** caricata per slide e per segmento, composita nella cornice. Niente binding di stile su ogni elemento dinamico.
+- **Rifinitura Figma dell'hub** ("Dove fa più difficoltà…") e della **pagina di chiusura** (M3): pillole, stati selezionata/completata, titoli e sfondo allineati ai token.
+- Eventuale adeguamento di `slides.json` / convenzione asset (PNG trasparenti, eventuale campo template), mantenendo **retro-compatibile** il player M4.
+
+### Cosa il milestone 5 NON include
+
+- Nuovi comportamenti o flussi (hub, loop, player e cattura domande restano quelli di M3/M4 — qui cambia solo la veste).
+- Lo stile delle schermate interne (setup, decision tree, debrief, archivio) — usano il design system del template.
+- La produzione dei contenuti grafici definitivi (le PNG reali per segmento) — restano placeholder; qui si definisce il contenitore e la convenzione, non si disegnano gli screenshot.
+- Animazioni/transizioni oltre la sequenza di step già esistente.
+
+### Fatto quando
+
+Con contenuti placeholder, l'hub, la pagina di chiusura e i 3 tipi di slide appaiono con la veste Figma; titolo e body mostrano le variabili col nome del prospect come testo live dentro la cornice stilizzata, mentre il contenuto è una PNG trasparente caricata per slide/segmento; il comportamento di M3/M4 è invariato.
+
+---
+
+## Milestone 6 — Debrief & email recap
 
 Chiude la call: schermata di riepilogo e invio del recap via email al prospect.
 
@@ -209,12 +235,12 @@ Chiude la call: schermata di riepilogo e invio del recap via email al prospect.
 - Destinatario MVP = **prospect**, inserito manualmente.
 - Dopo l'invio lo **stato** della sessione diventa "recap inviato".
 
-### Cosa il milestone 5 NON include
+### Cosa il milestone 6 NON include
 
 - L'integrazione HubSpot.
 - Destinatari multipli / CC al consulente (single recipient per ora).
 - Tracking aperture/click, invii programmati, allegati, editor HTML ricco.
-- La schermata archivio (milestone 6) — qui il debrief è quello immediato di fine call.
+- La schermata archivio (milestone 7) — qui il debrief è quello immediato di fine call.
 
 ### Fatto quando
 
@@ -222,7 +248,7 @@ A fine call l'operatore vede il debrief con riepilogo e domande, può editare le
 
 ---
 
-## Milestone 6 — Archivio sessioni
+## Milestone 7 — Archivio sessioni
 
 Rende le sessioni consultabili e gestibili nel tempo, scollegando il debrief e l'invio recap dal momento live della call.
 
@@ -230,13 +256,13 @@ Rende le sessioni consultabili e gestibili nel tempo, scollegando il debrief e l
 
 - **Elenco delle sessioni** (design system del template) con azienda, contatto, data, segmento/profilo e **stato** (in corso / chiusa / recap inviato).
 - **Ricerca e ordinamento base** per azienda o data.
-- Apertura di una sessione → **vista dettaglio** con il riepilogo e le domande catturate (riusa la vista debrief del milestone 5).
+- Apertura di una sessione → **vista dettaglio** con il riepilogo e le domande catturate (riusa la vista debrief del milestone 6).
 - **Editing delle domande**: aggiungere, modificare il testo, rimuovere.
 - **Invio o ri-invio del recap** via email da una sessione passata.
 - **Eliminazione** di una sessione (pulizia).
 - I dati **sopravvivono** alla chiusura del browser e sono ritrovabili in qualsiasi momento.
 
-### Cosa il milestone 6 NON include
+### Cosa il milestone 7 NON include
 
 - Analytics/statistiche sulle sessioni.
 - Export CSV/PDF dell'archivio.
