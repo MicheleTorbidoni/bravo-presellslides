@@ -127,6 +127,34 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_equal "closed", @session.reload.status
   end
 
+  test "a missing asset does not poison a previously shown image when navigating back" do
+    # precisione has the shared `concept` asset (content/assets/common) but no
+    # segment-variant `screenshot`, so the screenshot slide 404s -> placeholder.
+    # Regression: going back to the concept must show the image again, not keep
+    # the placeholder from the failed screenshot load.
+    @session.update!(segment: "precisione", operational_profile: "ho-excel-bom-bom1")
+
+    visit present_presale_session_path(@session)
+    assert_text "Dove fa più difficoltà la tua azienda?"
+    react_click "Tempi di produzione non raccolti"
+
+    # Concept slide: the shared asset loads.
+    assert_selector "img[src*='criticality-1-concept']", wait: 5
+
+    # Forward to the screenshot slide: its segment asset is missing -> placeholder.
+    page.execute_script(
+      "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))"
+    )
+    assert_text "criticality-1-screenshot.png", wait: 5
+
+    # Back to the concept slide: the image must render again (failed state reset).
+    page.execute_script(
+      "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))"
+    )
+    assert_selector "img[src*='criticality-1-concept']", wait: 5
+    assert_no_text "criticality-1-concept.png"
+  end
+
   test "the S shortcut leaves the presentation for the sessions list" do
     visit present_presale_session_path(@session)
     assert_text "Dove fa più difficoltà la tua azienda?"

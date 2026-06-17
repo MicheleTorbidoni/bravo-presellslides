@@ -51,6 +51,15 @@ function assetUrl(
 // (most criticalities have no real assets yet).
 function SlideImage({ src, name }: { src: string; name: string }) {
   const [failed, setFailed] = useState(false)
+  // The player reuses this component instance across slides (no key), so a single
+  // missing asset would otherwise "poison" every later valid image: `failed`
+  // stays true even once `src` points back at an image that loads fine. Reset it
+  // whenever the asset changes (adjusting state during render — no placeholder flash).
+  const [prevSrc, setPrevSrc] = useState(src)
+  if (src !== prevSrc) {
+    setPrevSrc(src)
+    setFailed(false)
+  }
   if (failed) {
     return (
       <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-bm-white/40 bg-bm-white/10">
@@ -65,7 +74,7 @@ function SlideImage({ src, name }: { src: string; name: string }) {
       src={src}
       alt=""
       onError={() => setFailed(true)}
-      className="max-h-full max-w-full object-contain"
+      className="h-full w-full object-contain"
     />
   )
 }
@@ -155,7 +164,7 @@ function SlideBody({
         </p>
       )}
 
-      <div className="mt-[1.5cqw] flex min-h-0 flex-1 items-center justify-center">
+      <div className="mt-[1.5cqw] flex min-h-0 flex-1 w-full items-center justify-center">
         {image && (
           <SlideImage
             src={assetUrl(image.asset, image.variant, segment)}
