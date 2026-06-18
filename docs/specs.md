@@ -227,18 +227,17 @@ Ogni combinazione (segmento industriale × profilo operativo) produce un subset 
     mappings.json             # segment × profile → criticality IDs
     slides.json               # testi (titolo/body) per step, per criticità
   /assets
-    /meccanica
-      C01-step1.png
+    /criticalities            # bitmap condivise per criticità (sorgente)
+      /C01
+        C01-step1.png
+        C01-step2.png
+        C01-step2-bomN.png    # variante per token decisionale
+        C01-step3.f1.png      # step con più fasi (sequenza)
+        C01-step3.f2.png
+      /C02
+        ...
+    /<segmento>               # override per segmento (raro/opzionale)
       C01-step2.png
-      C01-step3.f1.png        # step con più fasi (sequenza)
-      C01-step3.f2.png
-      C04-step1.bomN.png      # override per token decisionale
-      ...
-    /elettronica
-      ...
-    /[altri segmenti]
-      ...
-    /common                   # tier di fallback latente (oggi non popolato)
 
 ```
 
@@ -266,7 +265,7 @@ Ogni combinazione (segmento industriale × profilo operativo) produce un subset 
 
 **Step e fasi.** La risoluzione di una criticità è una sequenza di **step** (ognuno col suo titolo/body, overlay del player). Uno step può avere più **fasi** (`.f1`, `.f2`, …): più bitmap mostrate in sequenza (avanzo con la freccia, pallini indicatori) mantenendo fisso titolo/body. `step1` è l'apertura. Non esistono più i tipi `concept`/`screenshot`/`sequence`.
 
-**Verticalizzazione e override.** Tutti gli asset sono **segment-variant**: l'app carica da `content/assets/<segmento>/`. Un'immagine può avere un **override per token decisionale** (es. `.bomN` per la distinta multilivello). La catena di risoluzione (override token → default segmento → common latente → placeholder) è descritta in `asset-pipeline-spec.md`.
+**Organizzazione e override.** L'autoring è **per criticità**: le bitmap condivise stanno in `content/assets/criticalities/C<NN>/` e valgono per tutti i segmenti che includono la criticità. La **verticalizzazione per segmento** è un override opzionale in `content/assets/<segmento>/`. Un'immagine può avere un **override per token decisionale** (es. `-bomN`). Catena di risoluzione: **token → segmento → condiviso → placeholder** (dettagli in `asset-pipeline-spec.md`).
 
 ---
 
