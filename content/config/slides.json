@@ -3,369 +3,270 @@
     {
       "id": 1,
       "label": "Tempi di produzione non raccolti",
-      "slides": [
+      "steps": [
         {
-          "id": "crit1-slide1",
-          "type": "concept",
-          "title": "Un ciclo assistito e fluido.",
-          "body": null,
-          "asset": "criticality-1-concept.png",
-          "assetIsSegmentVariant": false
-        },
-        {
-          "id": "crit1-slide2",
-          "type": "screenshot",
           "title": "Tempi disponibili da subito.",
-          "body": "Ogni fase di {{company_name}} viene tracciata senza sforzo.",
-          "asset": "criticality-1-screenshot.png",
-          "assetIsSegmentVariant": true
+          "body": "Ogni fase di {{company_name}} viene tracciata senza sforzo."
         },
         {
-          "id": "crit1-slide3",
-          "type": "sequence",
           "title": "Come si costruisce il ciclo.",
-          "body": null,
-          "steps": [
-            { "asset": "criticality-1-step-1.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-1-step-2.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-1-step-3.png", "assetIsSegmentVariant": true }
-          ]
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 2,
       "label": "Costi reali di produzione sconosciuti",
-      "slides": [
+      "steps": [
         {
-          "id": "crit2-slide1",
-          "type": "concept",
-          "title": "Sapere quanto costa, davvero.",
-          "body": null,
-          "asset": "criticality-2-concept.png",
-          "assetIsSegmentVariant": false
-        },
-        {
-          "id": "crit2-slide2",
-          "type": "screenshot",
           "title": "Il costo di ogni commessa, in chiaro.",
-          "body": "Materiali, ore e macchine: il margine reale di {{company_name}}, commessa per commessa.",
-          "asset": "criticality-2-screenshot.png",
-          "assetIsSegmentVariant": true
+          "body": "Materiali, ore e macchine: il margine reale di {{company_name}}, commessa per commessa."
         },
         {
-          "id": "crit2-slide3",
-          "type": "sequence",
           "title": "Dal preventivo al consuntivo.",
-          "body": null,
-          "steps": [
-            { "asset": "criticality-2-step-1.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-2-step-2.png", "assetIsSegmentVariant": true }
-          ]
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 3,
       "label": "Date di consegna inaffidabili",
-      "slides": [
+      "steps": [
         {
-          "id": "crit3-slide1",
-          "type": "concept",
-          "title": "Promesse che si mantengono.",
-          "body": null,
-          "asset": "criticality-3-concept.png",
-          "assetIsSegmentVariant": false
+          "title": "Consegne prevedibili.",
+          "body": "Una data di consegna affidabile per ogni ordine di {{company_name}}."
         },
         {
-          "id": "crit3-slide2",
-          "type": "screenshot",
-          "title": "Consegne prevedibili.",
-          "body": "Una data di consegna affidabile per ogni ordine di {{company_name}}.",
-          "asset": "criticality-3-screenshot.png",
-          "assetIsSegmentVariant": true
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 4,
       "label": "Fermi macchina non previsti ma costosi",
-      "slides": [
+      "steps": [
         {
-          "id": "crit4-slide1",
-          "type": "concept",
-          "title": "I fermi non sono più una sorpresa.",
-          "body": null,
-          "asset": "criticality-4-concept.png",
-          "assetIsSegmentVariant": false
-        },
-        {
-          "id": "crit4-slide2",
-          "type": "screenshot",
           "title": "Ogni fermo, registrato e analizzato.",
-          "body": null,
-          "asset": "criticality-4-screenshot.png",
-          "assetIsSegmentVariant": true
+          "body": null
         },
         {
-          "id": "crit4-slide3",
-          "type": "sequence",
           "title": "Dalla causa all'azione.",
-          "body": null,
-          "steps": [
-            { "asset": "criticality-4-step-1.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-4-step-2.png", "assetIsSegmentVariant": true }
-          ]
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 5,
       "label": "Manutenzione solo reattiva",
-      "slides": [
+      "steps": [
         {
-          "id": "crit5-slide1",
-          "type": "concept",
-          "title": "Dalla riparazione alla prevenzione.",
-          "body": null,
-          "asset": "criticality-5-concept.png",
-          "assetIsSegmentVariant": false
-        },
-        {
-          "id": "crit5-slide2",
-          "type": "screenshot",
           "title": "Manutenzioni pianificate.",
-          "body": "Gli interventi di {{company_name}} programmati prima che il guasto accada.",
-          "asset": "criticality-5-screenshot.png",
-          "assetIsSegmentVariant": true
+          "body": "Gli interventi di {{company_name}} programmati prima che il guasto accada."
         },
         {
-          "id": "crit5-slide3",
-          "type": "sequence",
           "title": "Il piano di manutenzione.",
-          "body": null,
-          "steps": [
-            { "asset": "criticality-5-step-1.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-5-step-2.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-5-step-3.png", "assetIsSegmentVariant": true }
-          ]
+          "body": null
         }
       ]
     },
     {
       "id": 6,
       "label": "Setup e attrezzaggi non ottimizzati",
-      "slides": [
+      "steps": [
         {
-          "id": "crit6-slide1",
-          "type": "concept",
-          "title": "Meno tempo a preparare, più a produrre.",
-          "body": null,
-          "asset": "criticality-6-concept.png",
-          "assetIsSegmentVariant": false
+          "title": "Attrezzaggi sotto controllo.",
+          "body": "I tempi di setup di {{company_name}}, misurati e migliorabili."
         },
         {
-          "id": "crit6-slide2",
-          "type": "screenshot",
-          "title": "Attrezzaggi sotto controllo.",
-          "body": "I tempi di setup di {{company_name}}, misurati e migliorabili.",
-          "asset": "criticality-6-screenshot.png",
-          "assetIsSegmentVariant": true
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 7,
       "label": "Poca/nessuna visibilità della direzione sulla produzione",
-      "slides": [
+      "steps": [
         {
-          "id": "crit7-slide1",
-          "type": "concept",
-          "title": "La produzione, a colpo d'occhio.",
-          "body": null,
-          "asset": "criticality-7-concept.png",
-          "assetIsSegmentVariant": false
-        },
-        {
-          "id": "crit7-slide2",
-          "type": "screenshot",
           "title": "Un cruscotto per la direzione.",
-          "body": "I numeri di {{company_name}} aggiornati, senza chiedere a nessuno.",
-          "asset": "criticality-7-screenshot.png",
-          "assetIsSegmentVariant": true
+          "body": "I numeri di {{company_name}} aggiornati, senza chiedere a nessuno."
         },
         {
-          "id": "crit7-slide3",
-          "type": "sequence",
           "title": "Dal reparto al cruscotto.",
-          "body": null,
-          "steps": [
-            { "asset": "criticality-7-step-1.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-7-step-2.png", "assetIsSegmentVariant": true }
-          ]
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 8,
       "label": "Produzione scollegata dal gestionale aziendale",
-      "slides": [
+      "steps": [
         {
-          "id": "crit8-slide1",
-          "type": "concept",
-          "title": "Un unico flusso, dall'ordine alla spedizione.",
-          "body": null,
-          "asset": "criticality-8-concept.png",
-          "assetIsSegmentVariant": false
+          "title": "Produzione e gestionale parlano.",
+          "body": "I dati di {{company_name}} non si reinseriscono due volte."
         },
         {
-          "id": "crit8-slide2",
-          "type": "screenshot",
-          "title": "Produzione e gestionale parlano.",
-          "body": "I dati di {{company_name}} non si reinseriscono due volte.",
-          "asset": "criticality-8-screenshot.png",
-          "assetIsSegmentVariant": true
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 9,
       "label": "Segniamo ancora tutto su fogli Excel o carta",
-      "slides": [
+      "steps": [
         {
-          "id": "crit9-slide1",
-          "type": "concept",
-          "title": "Basta fogli sparsi.",
-          "body": null,
-          "asset": "criticality-9-concept.png",
-          "assetIsSegmentVariant": false
-        },
-        {
-          "id": "crit9-slide2",
-          "type": "screenshot",
           "title": "Un dato solo, condiviso.",
-          "body": "Le informazioni di {{company_name}} in un unico posto, sempre aggiornate.",
-          "asset": "criticality-9-screenshot.png",
-          "assetIsSegmentVariant": true
+          "body": "Le informazioni di {{company_name}} in un unico posto, sempre aggiornate."
         },
         {
-          "id": "crit9-slide3",
-          "type": "sequence",
           "title": "Da Excel al sistema.",
-          "body": null,
-          "steps": [
-            { "asset": "criticality-9-step-1.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-9-step-2.png", "assetIsSegmentVariant": true }
-          ]
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 10,
       "label": "Se manca una persona chiave, siamo fermi",
-      "slides": [
+      "steps": [
         {
-          "id": "crit10-slide1",
-          "type": "concept",
-          "title": "Il sapere non vive in una sola testa.",
-          "body": null,
-          "asset": "criticality-10-concept.png",
-          "assetIsSegmentVariant": false
+          "title": "Procedure alla portata di tutti.",
+          "body": "Il know-how di {{company_name}} resta in azienda, non in una persona sola."
         },
         {
-          "id": "crit10-slide2",
-          "type": "screenshot",
-          "title": "Procedure alla portata di tutti.",
-          "body": "Il know-how di {{company_name}} resta in azienda, non in una persona sola.",
-          "asset": "criticality-10-screenshot.png",
-          "assetIsSegmentVariant": true
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 11,
       "label": "Distinte base generiche e non realistiche",
-      "slides": [
+      "steps": [
         {
-          "id": "crit11-slide1",
-          "type": "concept",
-          "title": "Distinte che rispecchiano la realtà.",
-          "body": null,
-          "asset": "criticality-11-concept.png",
-          "assetIsSegmentVariant": false
-        },
-        {
-          "id": "crit11-slide2",
-          "type": "screenshot",
           "title": "Ogni componente al posto giusto.",
-          "body": "Le distinte base di {{company_name}}, precise e sempre aggiornate.",
-          "asset": "criticality-11-screenshot.png",
-          "assetIsSegmentVariant": true
+          "body": "Le distinte base di {{company_name}}, precise e sempre aggiornate."
         },
         {
-          "id": "crit11-slide3",
-          "type": "sequence",
           "title": "Come si costruisce una distinta.",
-          "body": null,
-          "steps": [
-            { "asset": "criticality-11-step-1.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-11-step-2.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-11-step-3.png", "assetIsSegmentVariant": true }
-          ]
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 12,
       "label": "Scarti e rilavorazioni non analizzati",
-      "slides": [
+      "steps": [
         {
-          "id": "crit12-slide1",
-          "type": "concept",
-          "title": "Gli scarti raccontano qualcosa.",
-          "body": null,
-          "asset": "criticality-12-concept.png",
-          "assetIsSegmentVariant": false
+          "title": "Scarti e rilavorazioni sotto la lente.",
+          "body": "Dove {{company_name}} perde tempo e materiale, finalmente visibile."
         },
         {
-          "id": "crit12-slide2",
-          "type": "screenshot",
-          "title": "Scarti e rilavorazioni sotto la lente.",
-          "body": "Dove {{company_name}} perde tempo e materiale, finalmente visibile.",
-          "asset": "criticality-12-screenshot.png",
-          "assetIsSegmentVariant": true
+          "title": null,
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
         }
       ]
     },
     {
       "id": 13,
       "label": "Difficoltà a gestire le varianti in maniera strutturata",
-      "slides": [
+      "steps": [
         {
-          "id": "crit13-slide1",
-          "type": "concept",
-          "title": "Le varianti, senza caos.",
-          "body": null,
-          "asset": "criticality-13-concept.png",
-          "assetIsSegmentVariant": false
-        },
-        {
-          "id": "crit13-slide2",
-          "type": "screenshot",
           "title": "Ogni variante, configurata in chiaro.",
-          "body": "Le configurazioni di {{company_name}} gestite in modo strutturato.",
-          "asset": "criticality-13-screenshot.png",
-          "assetIsSegmentVariant": true
+          "body": "Le configurazioni di {{company_name}} gestite in modo strutturato."
         },
         {
-          "id": "crit13-slide3",
-          "type": "sequence",
           "title": "Dal modello base alla variante.",
-          "body": null,
-          "steps": [
-            { "asset": "criticality-13-step-1.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-13-step-2.png", "assetIsSegmentVariant": true }
-          ]
+          "body": null
+        },
+        {
+          "title": null,
+          "body": null
         }
       ]
     }

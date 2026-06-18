@@ -1,12 +1,12 @@
 // Prospect-facing presentation surface. Single autonomous Inertia page — NO
 // template design system, NO AppShell — that switches between the hub, a
-// per-criticality slide flow (the M4 player) and the closing page entirely in
+// per-criticality slide flow (the player) and the closing page entirely in
 // client-side state, since presentation state is ephemeral (PRD data model §2).
 import { useCallback, useEffect, useState } from "react"
 import { Head, router } from "@inertiajs/react"
 import { apiPatch } from "@/lib/api"
 import { Hub, type Criticality } from "@/components/present/Hub"
-import { SlidePlayer, type Slide } from "@/components/present/SlidePlayer"
+import { SlidePlayer, type Step } from "@/components/present/SlidePlayer"
 import { QuestionCapture } from "@/components/present/QuestionCapture"
 import { Closing } from "@/components/present/Closing"
 
@@ -46,27 +46,27 @@ export default function Present({
   criticalities,
   prefiltered,
   discussedCriticalities,
-  slidesByCriticality,
+  stepsByCriticality,
   capturedQuestions,
 }: {
   session: SessionDetail
   criticalities: Criticality[]
   prefiltered: boolean
   discussedCriticalities: number[]
-  slidesByCriticality: Record<number, Slide[]>
+  stepsByCriticality: Record<number, Step[]>
   capturedQuestions: CapturedQuestion[]
 }) {
   const [view, setView] = useState<View>({ name: "hub" })
   const [discussed, setDiscussed] = useState<number[]>(discussedCriticalities)
-  // Ephemeral position within the current flow: which slide, and which step of a
-  // sequence slide. Reset every time a flow is entered.
-  const [position, setPosition] = useState({ slideIndex: 0, stepIndex: 0 })
+  // Ephemeral position within the current flow: which step, and which phase of a
+  // multi-phase step. Reset every time a flow is entered.
+  const [position, setPosition] = useState({ stepIndex: 0, phaseIndex: 0 })
   const [questionOpen, setQuestionOpen] = useState(false)
   const [captured, setCaptured] = useState<CapturedQuestion[]>(capturedQuestions)
 
-  const flowSlides =
-    view.name === "flow" ? (slidesByCriticality[view.criticalityId] ?? []) : []
-  const currentSlide: Slide | null = flowSlides[position.slideIndex] ?? null
+  const flowSteps =
+    view.name === "flow" ? (stepsByCriticality[view.criticalityId] ?? []) : []
+  const currentStep: Step | null = flowSteps[position.stepIndex] ?? null
 
   // Reaching the closing page concludes the conversation, so the session is
   // marked closed (persisted). Returning to the hub afterwards is allowed.
@@ -89,49 +89,45 @@ export default function Present({
     [discussed, session.id],
   )
 
-  // Advance: step through a sequence slide, then to the next slide, then complete
-  // the flow when past the last slide. Empty criticalities complete immediately.
+  // Advance: step through a step's phases, then to the next step, then complete
+  // the flow when past the last step. Empty criticalities complete immediately.
   const advance = useCallback(() => {
     if (view.name !== "flow") return
-    const slides = slidesByCriticality[view.criticalityId] ?? []
-    if (slides.length === 0) {
+    const steps = stepsByCriticality[view.criticalityId] ?? []
+    if (steps.length === 0) {
       completeFlow(view.criticalityId)
       return
     }
-    const slide = slides[position.slideIndex]
-    const steps = slide?.type === "sequence" ? slide.steps : undefined
-    if (steps && position.stepIndex < steps.length - 1) {
+    const phases = steps[position.stepIndex]?.phases ?? []
+    if (position.phaseIndex < phases.length - 1) {
       setPosition({
-        slideIndex: position.slideIndex,
-        stepIndex: position.stepIndex + 1,
+        stepIndex: position.stepIndex,
+        phaseIndex: position.phaseIndex + 1,
       })
-    } else if (position.slideIndex < slides.length - 1) {
-      setPosition({ slideIndex: position.slideIndex + 1, stepIndex: 0 })
+    } else if (position.stepIndex < steps.length - 1) {
+      setPosition({ stepIndex: position.stepIndex + 1, phaseIndex: 0 })
     } else {
       completeFlow(view.criticalityId)
     }
-  }, [view, position, slidesByCriticality, completeFlow])
+  }, [view, position, stepsByCriticality, completeFlow])
 
-  // Back: mirror of advance. Stays put at the very first step of the first slide.
+  // Back: mirror of advance. Stays put at the very first phase of the first step.
   const back = useCallback(() => {
     if (view.name !== "flow") return
-    const slides = slidesByCriticality[view.criticalityId] ?? []
-    const slide = slides[position.slideIndex]
-    const steps = slide?.type === "sequence" ? slide.steps : undefined
-    if (steps && position.stepIndex > 0) {
+    const steps = stepsByCriticality[view.criticalityId] ?? []
+    if (position.phaseIndex > 0) {
       setPosition({
-        slideIndex: position.slideIndex,
-        stepIndex: position.stepIndex - 1,
+        stepIndex: position.stepIndex,
+        phaseIndex: position.phaseIndex - 1,
       })
-    } else if (position.slideIndex > 0) {
-      const prev = slides[position.slideIndex - 1]
-      const prevSteps = prev?.type === "sequence" ? prev.steps : undefined
+    } else if (position.stepIndex > 0) {
+      const prevPhases = steps[position.stepIndex - 1]?.phases ?? []
       setPosition({
-        slideIndex: position.slideIndex - 1,
-        stepIndex: prevSteps ? prevSteps.length - 1 : 0,
+        stepIndex: position.stepIndex - 1,
+        phaseIndex: Math.max(0, prevPhases.length - 1),
       })
     }
-  }, [view, position, slidesByCriticality])
+  }, [view, position, stepsByCriticality])
 
   // Operator keyboard shortcuts. Global shortcuts (work from any view): C → closing,
   // S → leave to the sessions list, F/F11 → fullscreen. Flow-only: → advance,
@@ -175,18 +171,18 @@ export default function Present({
   // button) — with 4-5 relevant criticalities per set they all fit on the hub.
   // Already-discussed criticalities can be re-entered. Resets the flow position.
   function pick(id: number) {
-    setPosition({ slideIndex: 0, stepIndex: 0 })
+    setPosition({ stepIndex: 0, phaseIndex: 0 })
     setView({ name: "flow", criticalityId: id })
   }
 
-  // Persist a captured question (auto-save), bound to the current slide/criticality.
+  // Persist a captured question (auto-save), bound to the current step/criticality.
   function saveQuestion(text: string) {
     if (view.name !== "flow") return
     const entry: CapturedQuestion = {
       id: crypto.randomUUID(),
       text,
       criticality_id: view.criticalityId,
-      slide_id: currentSlide?.id ?? null,
+      slide_id: currentStep?.id ?? null,
       asked_at: new Date().toISOString(),
     }
     const next = [...captured, entry]
@@ -223,9 +219,8 @@ export default function Present({
       {view.name === "flow" && (
         <>
           <SlidePlayer
-            slide={currentSlide}
-            stepIndex={position.stepIndex}
-            segment={session.segment}
+            step={currentStep}
+            phaseIndex={position.phaseIndex}
             companyName={session.company_name}
             contactName={session.contact_name}
             onAdvanceClick={advance}

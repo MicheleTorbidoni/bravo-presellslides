@@ -1,27 +1,21 @@
-// Prospect-facing 16:9 slide player (Milestone 4). Autonomous UI — no template
-// design system, raw Tailwind only. Purely presentational: navigation state and
-// keyboard handling live in Present.tsx (which also binds captured questions to
-// the current slide); this component just renders the current slide/step.
+// Prospect-facing 16:9 slide player. Autonomous UI — no template design system,
+// raw Tailwind only. Purely presentational: navigation state and keyboard handling
+// live in Present.tsx (which binds captured questions to the current step); this
+// component just renders the current step and its active phase.
 //
-// Styling here is deliberately functional/placeholder — the Figma chrome + the
-// "chrome + transparent PNG" convention arrive in Milestone 5.
+// File-driven model: a criticality is an ordered list of steps; each step has a
+// title/body (overlay, from config) and 1..N phase bitmaps shown in sequence. The
+// phase image URLs are already resolved server-side (token > segment > shared) — see
+// ContentConfig.steps_for — so this component just displays `step.phases[phaseIndex]`.
 import { useState } from "react"
 import { Stage } from "./Stage"
 import { Logo } from "./Logo"
 
-export type SlideStep = {
-  asset: string
-  assetIsSegmentVariant: boolean
-}
-
-export type Slide = {
+export type Step = {
   id: string
-  type: "concept" | "screenshot" | "sequence"
-  title: string
+  title: string | null
   body: string | null
-  asset?: string
-  assetIsSegmentVariant?: boolean
-  steps?: SlideStep[]
+  phases: string[]
 }
 
 // Replaces {{company_name}} / {{contact_name}} with the prospect's data, with a
@@ -36,31 +30,18 @@ export function interpolate(
     .replace(/\{\{\s*contact_name\s*\}\}/g, contactName?.trim() || "")
 }
 
-// Builds the runtime asset URL served by PresentationAssetsController. Segment
-// variants come from the prospect's segment folder; everything else from common.
-function assetUrl(
-  asset: string,
-  isSegmentVariant: boolean | undefined,
-  segment: string | null,
-): string {
-  const folder = isSegmentVariant && segment ? segment : "common"
-  return `/presentation_assets/${folder}/${asset}`
-}
-
-// A bitmap that degrades to a labelled grey placeholder when the PNG is missing
-// (most criticalities have no real assets yet).
-function SlideImage({ src, name }: { src: string; name: string }) {
+// A bitmap that degrades to a labelled grey placeholder when the image is missing
+// (or fails to load). The player reuses this instance across steps/phases, so the
+// failed state is reset whenever `src` changes (adjusting state during render —
+// no placeholder flash), otherwise one missing image would poison later valid ones.
+function SlideImage({ src, name }: { src: string | undefined; name: string }) {
   const [failed, setFailed] = useState(false)
-  // The player reuses this component instance across slides (no key), so a single
-  // missing asset would otherwise "poison" every later valid image: `failed`
-  // stays true even once `src` points back at an image that loads fine. Reset it
-  // whenever the asset changes (adjusting state during render — no placeholder flash).
   const [prevSrc, setPrevSrc] = useState(src)
   if (src !== prevSrc) {
     setPrevSrc(src)
     setFailed(false)
   }
-  if (failed) {
+  if (!src || failed) {
     return (
       <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-bm-white/40 bg-bm-white/10">
         <span className="px-4 text-center font-mono text-[1.1cqw] text-bm-white/70">
@@ -80,27 +61,24 @@ function SlideImage({ src, name }: { src: string; name: string }) {
 }
 
 export function SlidePlayer({
-  slide,
-  stepIndex,
-  segment,
+  step,
+  phaseIndex,
   companyName,
   contactName,
   onAdvanceClick,
 }: {
-  slide: Slide | null
-  stepIndex: number
-  segment: string | null
+  step: Step | null
+  phaseIndex: number
   companyName: string | null
   contactName: string | null
   onAdvanceClick: () => void
 }) {
   return (
     <Stage onClick={onAdvanceClick} className="bg-bm-green text-bm-white">
-      {slide ? (
-        <SlideBody
-          slide={slide}
-          stepIndex={stepIndex}
-          segment={segment}
+      {step ? (
+        <StepBody
+          step={step}
+          phaseIndex={phaseIndex}
           companyName={companyName}
           contactName={contactName}
         />
@@ -125,62 +103,47 @@ export function SlidePlayer({
   )
 }
 
-function SlideBody({
-  slide,
-  stepIndex,
-  segment,
+function StepBody({
+  step,
+  phaseIndex,
   companyName,
   contactName,
 }: {
-  slide: Slide
-  stepIndex: number
-  segment: string | null
+  step: Step
+  phaseIndex: number
   companyName: string | null
   contactName: string | null
 }) {
-  const title = interpolate(slide.title, companyName, contactName)
-  const body = slide.body
-    ? interpolate(slide.body, companyName, contactName)
-    : null
-
-  // The active bitmap: a sequence shows its current step; concept/screenshot show
-  // their single asset.
-  let image: { asset: string; variant: boolean | undefined } | null = null
-  if (slide.type === "sequence" && slide.steps?.[stepIndex]) {
-    const step = slide.steps[stepIndex]
-    image = { asset: step.asset, variant: step.assetIsSegmentVariant }
-  } else if (slide.asset) {
-    image = { asset: slide.asset, variant: slide.assetIsSegmentVariant }
-  }
+  const title = step.title ? interpolate(step.title, companyName, contactName) : null
+  const body = step.body ? interpolate(step.body, companyName, contactName) : null
+  const src = step.phases[phaseIndex]
+  const showDots = step.phases.length > 1
 
   return (
     <div className="flex h-full w-full flex-col px-[5.2cqw] pt-[2.6cqw] pb-[7cqw]">
-      <h1 className="max-w-[85%] font-bm text-[4.2cqw] leading-[1.05] font-bold tracking-tight text-bm-white">
-        {title}
-      </h1>
+      {title && (
+        <h1 className="max-w-[85%] font-bm text-[4.2cqw] leading-[1.05] font-bold tracking-tight text-bm-white">
+          {title}
+        </h1>
+      )}
       {body && (
         <p className="mt-[1cqw] max-w-[70%] text-[1.7cqw] text-bm-white/90">
           {body}
         </p>
       )}
 
-      <div className="mt-[1.5cqw] flex min-h-0 flex-1 w-full items-center justify-center">
-        {image && (
-          <SlideImage
-            src={assetUrl(image.asset, image.variant, segment)}
-            name={image.asset}
-          />
-        )}
+      <div className="mt-[1.5cqw] flex min-h-0 w-full flex-1 items-center justify-center">
+        <SlideImage src={src} name={step.id} />
       </div>
 
-      {slide.type === "sequence" && slide.steps && slide.steps.length > 1 && (
+      {showDots && (
         <div className="mt-[1.2cqw] flex items-center justify-center gap-[0.7cqw]">
-          {slide.steps.map((_, i) => (
+          {step.phases.map((_, i) => (
             <span
               key={i}
               className={[
-                "size-[0.9cqw] rounded-full transition-colors",
-                i === stepIndex ? "bg-bm-white" : "bg-bm-white/40",
+                "h-[0.9cqw] w-[0.9cqw] rounded-full",
+                i === phaseIndex ? "bg-bm-white" : "bg-bm-white/40",
               ].join(" ")}
             />
           ))}

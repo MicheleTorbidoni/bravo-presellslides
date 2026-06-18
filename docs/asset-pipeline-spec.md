@@ -37,7 +37,7 @@ Una criticità è una **sequenza di step**; ogni step ha un **testo** (titolo/bo
 
 ## 3. Cartelle (content/assets)
 
-- `content/assets/criticalities/C<NN>/` → bitmap **condivise** della criticità (sorgente di verità, sincronizzata da Figma).
+- `content/assets/criticalities/` → bitmap **condivise** della criticità (file `C<NN>-step<Y>…png`, struttura **flat**; sincronizzate da Figma).
 - `content/assets/<segmento>/` → **override per segmento** (raro/opzionale).
 - Niente più `common/` né `concept`. Una sola copia del condiviso (no duplicazione per segmento).
 
@@ -50,9 +50,9 @@ Una criticità è una **sequenza di step**; ogni step ha un **testo** (titolo/bo
 Per (criticità, step, fase, segmento, profilo operativo), dal più specifico:
 
 ```
-1. token      criticalities/C<NN>/C<NN>-step<Y>-<token>[.f<Z>].png   (se il profilo contiene quel token)
+1. token      criticalities/C<NN>-step<Y>-<token>[.f<Z>].png   (se il profilo contiene quel token)
 2. segmento   <segmento>/C<NN>-step<Y>[.f<Z>].png                     (override per segmento)
-3. condiviso  criticalities/C<NN>/C<NN>-step<Y>[.f<Z>].png            (default)
+3. condiviso  criticalities/C<NN>-step<Y>[.f<Z>].png            (default)
 4. placeholder (nessun file) → placeholder client col nome file
 ```
 
@@ -79,7 +79,7 @@ Ordine = step1, step2, …. `{{company_name}}`/`{{contact_name}}` interpolati a 
 
 - **Una pagina per criticità** (C01–C13). Frame top-level = una bitmap. Contenuto = istanze di componenti riusati; il sync **rasterizza** il frame a PNG piatto @2x (~2680px lato lungo).
 - Varianti per token = frame `C<NN>-step<Y>-<token>-MAIN` (label umana ammessa, tradotta in token via `decision-tree.json`; match tollerante).
-- Il sync scarta `-MAIN`, scrive in `content/assets/criticalities/C<NN>/`.
+- Il sync scarta `-MAIN`, scrive in `content/assets/criticalities/` (flat).
 - **Override per segmento**: meccanismo di autoring da definire quando servirà il primo override reale (deferred).
 - Esecuzione on-demand via Claude + MCP Figma (dry-run poi export). Nessuno script committato.
 

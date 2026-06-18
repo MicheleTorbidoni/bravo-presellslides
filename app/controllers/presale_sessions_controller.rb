@@ -66,7 +66,7 @@ class PresaleSessionsController < ApplicationController
       criticalities: relevant.presence || ContentConfig.criticalities,
       prefiltered: relevant.any?,
       discussedCriticalities: @session.discussed_criticalities,
-      slidesByCriticality: slides_by_criticality,
+      stepsByCriticality: steps_by_criticality(@session),
       capturedQuestions: @session.captured_questions
     }
   end
@@ -113,13 +113,23 @@ class PresaleSessionsController < ApplicationController
       }
     end
 
-    # The slide definitions from slides.json, indexed by criticality id, so the
-    # player can look up the slides for whichever criticality the operator enters.
-    # Criticalities with no entry simply have no slides (the player shows a
-    # navigable placeholder).
-    def slides_by_criticality
-      ContentConfig.slides.index_by { |c| c[:id] }
-                   .transform_values { |c| c[:slides] }
+    # The resolved slide flow for every criticality, keyed by id, so the player
+    # can look up the steps for whichever criticality the operator enters. Each
+    # criticality's steps (and their phases) are discovered from the bitmaps and
+    # resolved against this session's segment + operational profile (token/segment
+    # override > shared default) — see ContentConfig.steps_for. Steps with no
+    # bitmap simply have no phase URLs and the player shows a placeholder.
+    def steps_by_criticality(session)
+      ContentConfig.criticalities.to_h do |c|
+        [
+          c[:id],
+          ContentConfig.steps_for(
+            criticality_id: c[:id],
+            segment: session.segment,
+            operational_profile: session.operational_profile
+          )
+        ]
+      end
     end
 
     def session_params
