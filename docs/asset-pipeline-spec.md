@@ -21,6 +21,28 @@ Tre dimensioni indipendenti modulano *quale* bitmap viene caricata per una slide
 
 > Nota: il **profilo operativo** (foglia dell'albero) determina il *subset di criticità* mostrato nell'hub (vedi `mappings.json`, 126 incroci segmento×profilo, oggi con subset identico per tutte le foglie di un segmento). Le **immagini** dipendono invece da (segmento × token × fase), non dal profilo intero.
 
+### 1.1 Tipi di slide (ruolo narrativo)
+
+La risoluzione di ogni criticità segue una sequenza narrativa: prima si introduce l'**idea**, poi la si **prova nel prodotto**, poi si mostra **come funziona**. A questo corrispondono tre tipi di slide:
+
+| Tipo | Ruolo | Verticalizza per segmento? | Cartella |
+|---|---|---|---|
+| **`concept`** | Apertura: introduce l'idea/promessa in modo astratto e concettuale, *prima* di mostrare il prodotto. Illustrazione di concetto, **non** uno screenshot. | **No** — il concetto è universale (vale per tutti i settori). `assetIsSegmentVariant: false`. | `common/` |
+| **`screenshot`** | La prova nel prodotto: una schermata reale dell'applicazione che dimostra il concetto. | **Sì** — `assetIsSegmentVariant: true`. | `<segmento>/` |
+| **`sequence`** | Il "come funziona": spiegazione passo-passo, una o più **fasi** (`step-*`) mostrate in sequenza. | **Sì** — `assetIsSegmentVariant: true`. | `<segmento>/` |
+
+Conseguenze pratiche del fatto che `concept` è **comune**:
+- la produci **una volta sola** e copre tutti i 7 segmenti;
+- non rientra nello scaffold dei default segment-variant (i 13 `concept` sono infatti già completi, 13/13).
+
+Esempi di titoli (la `concept` è sempre la prima della sequenza):
+
+| Criticità | `concept` (idea) | `screenshot` (prova nel prodotto) |
+|---|---|---|
+| 1 | "Un ciclo assistito e fluido." | "Tempi disponibili da subito." |
+| 2 | "Sapere quanto costa, davvero." | "Il costo di ogni commessa, in chiaro." |
+| 3 | "Promesse che si mantengono." | "Consegne prevedibili." |
+
 ---
 
 ## 2. Convenzione di naming dei file
