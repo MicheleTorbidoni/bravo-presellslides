@@ -225,24 +225,28 @@ Ogni combinazione (segmento industriale × profilo operativo) produce un subset 
     decision-tree.json        # struttura dell'albero decisionale
     criticalities.json        # elenco delle 13 criticità con metadati
     mappings.json             # segment × profile → criticality IDs
-    slides.json               # struttura delle slide per criticità
+    slides.json               # testi (titolo/body) per step, per criticità
   /assets
     /meccanica
-      criticality-1-slide-1.png
-      criticality-1-slide-2.png
-      criticality-4-slide-1.png
+      C01-step1.png
+      C01-step2.png
+      C01-step3.f1.png        # step con più fasi (sequenza)
+      C01-step3.f2.png
+      C04-step1.bomN.png      # override per token decisionale
       ...
     /elettronica
       ...
     /[altri segmenti]
       ...
-    /common
-      criticality-1-concept.png
-      ...
+    /common                   # tier di fallback latente (oggi non popolato)
 
 ```
 
 ### Schema slide (slides.json)
+
+> Il modello completo (naming, fasi, override per token, risoluzione, workflow Figma) è in [`docs/asset-pipeline-spec.md`](./asset-pipeline-spec.md). Qui solo l'essenziale.
+
+`slides.json` contiene **solo i testi** (titolo/body) per **step**, per criticità. La struttura e il **numero di immagini sono file-driven** (dedotti dai file `C<NN>-step<Y>[.token][.fZ].png` su disco), non dichiarati qui.
 
 ```json
 {
@@ -250,34 +254,9 @@ Ogni combinazione (segmento industriale × profilo operativo) produce un subset 
     {
       "id": 1,
       "label": "Tempi di produzione non raccolti",
-      "slides": [
-        {
-          "id": "crit1-slide1",
-          "type": "concept",
-          "title": "Un ciclo assistito e fluido.",
-          "body": null,
-          "asset": "criticality-1-concept.png",
-          "assetIsSegmentVariant": false
-        },
-        {
-          "id": "crit1-slide2",
-          "type": "screenshot",
-          "title": "Tempi disponibili da subito.",
-          "body": null,
-          "asset": "criticality-1-screenshot.png",
-          "assetIsSegmentVariant": true
-        },
-        {
-          "id": "crit1-slide3",
-          "type": "sequence",
-          "title": "Come si costruisce il ciclo.",
-          "body": null,
-          "steps": [
-            { "asset": "criticality-1-step-1.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-1-step-2.png", "assetIsSegmentVariant": true },
-            { "asset": "criticality-1-step-3.png", "assetIsSegmentVariant": true }
-          ]
-        }
+      "steps": [
+        { "title": "Tempi disponibili da subito.", "body": "Ogni fase di {{company_name}} viene tracciata senza sforzo." },
+        { "title": "Come si costruisce il ciclo.", "body": null }
       ]
     }
   ]
@@ -285,11 +264,9 @@ Ogni combinazione (segmento industriale × profilo operativo) produce un subset 
 
 ```
 
-**Numero di slide:** ogni criticità ha tra **5 e 8 slide**.
+**Step e fasi.** La risoluzione di una criticità è una sequenza di **step** (ognuno col suo titolo/body, overlay del player). Uno step può avere più **fasi** (`.f1`, `.f2`, …): più bitmap mostrate in sequenza (avanzo con la freccia, pallini indicatori) mantenendo fisso titolo/body. `step1` è l'apertura. Non esistono più i tipi `concept`/`screenshot`/`sequence`.
 
-**Slide a sequenza (`type: "sequence"`).** Alcune slide non sono statiche ma una **sequenza ordinata di bitmap/step** che crea una mini-animazione (build progressivo). In questo caso la slide usa il campo `steps` (array) invece del singolo `asset`. La navigazione "avanti" avanza di **uno step alla volta** all'interno della slide; raggiunto l'ultimo step, l'avanti successivo passa alla slide seguente. La navigazione "indietro" funziona in modo speculare. Ogni step può avere il proprio `assetIsSegmentVariant`. Le slide statiche continuano a usare il campo `asset` come prima.
-
-Quando `assetIsSegmentVariant: true`, l'app carica l'asset dalla cartella del segmento selezionato. Quando `false`, carica l'asset dalla cartella `/common`.
+**Verticalizzazione e override.** Tutti gli asset sono **segment-variant**: l'app carica da `content/assets/<segmento>/`. Un'immagine può avere un **override per token decisionale** (es. `.bomN` per la distinta multilivello). La catena di risoluzione (override token → default segmento → common latente → placeholder) è descritta in `asset-pipeline-spec.md`.
 
 ---
 
