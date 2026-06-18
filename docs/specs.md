@@ -28,9 +28,9 @@ L'app combina tre variabili per costruire la sessione:
 
 | Dimensione                | Valori possibili                      | Effetto                                                       |
 | ------------------------- | ------------------------------------- | ------------------------------------------------------------- |
-| **Segmento industriale**  | 7 segmenti (vedi §4)                  | Determina quale variante di screenshot/grafica viene caricata |
-| **Profilo operativo**     | Leaf node del decision tree (vedi §5) | Determina il subset di criticità rilevanti                    |
-| **Criticità selezionate** | 4-5 su 13 totali (vedi §6)            | Determina la sequenza di slide da mostrare                    |
+| **Segmento industriale**  | 7 segmenti (vedi §4)                  | Determina il subset di criticità e può sovrascrivere (override) una specifica bitmap rispetto al default condiviso |
+| **Profilo operativo**     | Leaf node del decision tree (vedi §5) | Determina il subset di criticità; un suo *token* (es. `bomN`) può selezionare una variante di una specifica slide |
+| **Criticità selezionate** | subset per segmento, su 13 totali (vedi §6) | Determina la sequenza di **step** (con eventuali **fasi**) da mostrare |
 
 
 ---
@@ -47,7 +47,7 @@ I 7 segmenti coprono in modo sufficientemente preciso l'universo di prospect:
 6. Imballaggi e Packaging
 7. Gomma e Plastica
 
-Per ogni segmento esiste una variante specifica di ogni asset visivo (screenshot del software, grafiche infografiche). Queste varianti sono **bitmap statiche** (PNG/JPG), pre-prodotte e incluse nel progetto come asset.
+Le criticità sono autorate **una volta sola** (bitmap condivise per criticità); la verticalizzazione per segmento è un **override opzionale** — un segmento sovrascrive una specifica bitmap solo quando serve davvero (vedi §8 e `asset-pipeline-spec.md`). Le bitmap sono **statiche** (PNG), incluse nel progetto come asset.
 
 ---
 
@@ -129,23 +129,21 @@ Elenco completo delle criticità identificate:
 
 ### Mapping criticità → profilo
 
-Ogni combinazione (segmento industriale × profilo operativo) produce un subset di 4-5 criticità rilevanti. Questo mapping è definito in un file di configurazione esterno (JSON), non nel codice.
+Ogni combinazione (segmento industriale × profilo operativo) produce un subset di criticità rilevanti, definito in `content/config/mappings.json` (non nel codice). La risoluzione è `ContentConfig.criticalities_for(segment:, operational_profile:)`: lookup sulla **coppia** (segmento, profilo); se la coppia non è mappata → fallback alla lista completa delle 13.
 
-**Struttura del file di configurazione:**
+**Stato attuale (implementato):** `mappings.json` materializza **tutti i 126 incroci** = 7 segmenti × 18 foglie dell'albero. Oggi il subset **dipende dal segmento** (lo stesso subset è replicato su tutte le 18 foglie di quel segmento), ma essendo righe separate per profilo resta **raffinabile per modalità operativa** in futuro editando il singolo incrocio. L'helper `ContentConfig.operational_profiles` enumera le 18 foglie.
 
 ```json
 {
   "mappings": [
-    {
-      "segment": "meccanica",
-      "operationalProfile": "1",
-      "criticalities": [1, 3, 4, 7, 12]
-    },
+    { "segment": "meccanica", "operationalProfile": "ho-excel-bom-bom1", "criticalities": [1, 2, 3, 4, 7, 8, 10] },
     ...
   ]
 }
 
 ```
+
+I subset per segmento attuali: meccanica `[1,2,3,4,7,8,10]`, elettronica `[3,7,8,9,11,13]`, precisione `[1,2,3,4,6,7,8]`, lamiere-e-metalli `[1,2,3,4,11,12]`, alimentare `[2,4,7,9,11,12]`, imballaggi-e-packaging `[1,2,3,4,6,5,7]`, gomma-e-plastica `[1,2,4,5,7,11,12]`.
 
 ---
 
@@ -167,28 +165,24 @@ Ogni combinazione (segmento industriale × profilo operativo) produce un subset 
 
 ### Fase 2 — Slide di presentazione (mostrata al prospect via OBS)
 
-**Prima slide: Selezione criticità**
+**Hub criticità** (pagina `Present`, vista `hub`)
 
 - Titolo: *"Dove fa più difficoltà la tua azienda?"*
-- Le criticità rilevanti pre-calcolate appaiono come **pillole/tag cliccabili** (verde quando selezionata)
-- L'operatore può cliccare per selezionare/deselezionare criticità in tempo reale durante la conversazione
-- Un pulsante "Avvia presentazione" / "Continua" procede con le criticità selezionate
+- Le criticità del subset pre-calcolato appaiono come **pillole cliccabili**
+- **Cliccare una pillola avvia subito il flusso** di quella criticità (nessun pulsante "Avvia" separato — con 4-5 criticità per set stanno tutte nell'hub). Le criticità già discusse appaiono come tali e sono ri-entrabili.
 
-**Flusso slide per criticità:**
+**Flusso slide per criticità** (vista `flow`, il player)
 
-- Per ogni criticità selezionata: sequenza lineare di slide (N slide per criticità, da definire nel content)
-- Navigazione: pulsanti avanti/indietro, possibilità di saltare a criticità successive
-- Ogni slide può contenere:
-  - Testo fisso (titolo, corpo)
-  - Asset visivo variante per segmento (screenshot o grafica infografica — **bitmap**)
-  - Variabili personalizzate (`{{company_name}}`, `{{contact_name}}`)
+- Una criticità è una sequenza ordinata di **step**; ogni step ha un titolo/body (overlay) e **1..N fasi** (bitmap mostrate in sequenza, con pallini indicatori). Struttura e numero di immagini sono **file-driven** (vedi §8), non un numero fisso.
+- Navigazione: → / click avanza (fase → step → completa), ← indietro. Completato il flusso si torna all'hub e la criticità è segnata come **discussa** (persistito).
+- Ogni step può contenere: testo (titolo/body con `{{company_name}}` / `{{contact_name}}`) e le bitmap di fase (risolte per segmento/token).
 
 **Cattura domande del prospect (durante la presentazione):**
 
 - Si attiva **solo tramite scorciatoia da tastiera `Q`** (nessun pulsante a schermo, per non sporcare la vista condivisa)
 - `Q` → overlay minimale con campo di testo libero
 - Conferma → domanda **salvata nella sessione (persistita, auto-save)**, overlay si chiude
-- Le domande sono associate all'indice di slide/criticità corrente (per contesto nel debrief)
+- Le domande sono associate allo **step corrente** (`slide_id` = es. `C01-step2`) e alla criticità (per contesto nel debrief)
 - L'edit/cancellazione delle domande **non** avviene durante la presentazione, ma più tardi nel debrief/archivio
 
 ### Fase 3 — Debrief (post-sessione)
@@ -296,10 +290,14 @@ Ogni combinazione (segmento industriale × profilo operativo) produce un subset 
 
 ### Navigazione keyboard
 
-- Freccia destra / click → slide successiva
-- Freccia sinistra → slide precedente
-- `F` o `F11` → toggle fullscreen
+Shortcut globali (da qualunque vista): `C` → pagina di chiusura, `S` → esci all'archivio sessioni, `F` / `F11` → toggle fullscreen.
+Solo nel flow:
+
+- Freccia destra / click → avanza (fase successiva → step successivo → completa il flusso)
+- Freccia sinistra → indietro (fase/step precedente)
 - `Q` → apre overlay cattura domanda
+
+Quando uno step ha più fasi, i **pallini indicatori** in basso mostrano la fase corrente.
 
 ---
 
@@ -349,7 +347,7 @@ Usare come base il template `github.com/MicheleTorbidoni/bm-build-new`, già not
 | Auth          | `authentication.rb` concern (già nel template) | `require_authentication` già implementato                         |
 | Build         | **Vite 7**, Propshaft                          | Già configurato                                                   |
 | Email         | Aggiungere **Resend** o SMTP via Action Mailer | Il template ha Solid Queue per background jobs                    |
-| Asset storage | Static files in `public/assets/` (MVP)         | Se gli asset crescono: migrare a S3/Cloudflare R2                 |
+| Asset storage | File statici in `content/assets/` (fuori dal web root), serviti da `PresentationAssetsController` | Se gli asset crescono: migrare a S3/Cloudflare R2 |
 
 
 ### Separazione critica dei contesti UI
@@ -371,33 +369,32 @@ Le slide sono componenti React autonomi in `app/javascript/pages/slides/` (o sim
 
 ### Pattern Inertia consigliato per le fasi di sessione
 
+Implementazione reale: `PresaleSessionsController` (azioni `index`, `setup`, `profiling`, `result`, `present`, `update`). I contenuti statici sono letti via `ContentConfig` (cache in produzione, re-read in dev). Esempio essenziale:
+
 ```ruby
-# SessionsController
+# PresaleSessionsController
 def setup
-  render inertia: "Session/Setup"           # fase 1: nome prospect + segmento
+  render inertia: "PresaleSessions/Setup",      # fase 1: prospect + segmento
+         props: { session: ..., segments: ContentConfig.segments }
 end
 
 def profiling
-  render inertia: "Session/DecisionTree",   # fase 1: decision tree
-         props: { tree: decision_tree_config }
+  render inertia: "PresaleSessions/Profiling",  # fase 1: decision tree (walk client-side)
+         props: { session: ..., tree: ContentConfig.decision_tree }
 end
 
 def present
-  render inertia: "Session/SlidePresenter", # fase 2: slide player
-         props: { slides: @slides, segment: @segment }
+  render inertia: "Present", props: {           # fase 2: hub + player + chiusura
+    session: ..., criticalities: ..., prefiltered: ...,
+    discussedCriticalities: ...,
+    stepsByCriticality: steps_by_criticality(@session), # step/fasi risolti per segmento+profilo
+    capturedQuestions: ...
+  }
 end
 
-def debrief
-  render inertia: "Session/Debrief",        # fase 3: recap + email
-         props: { session: @session_data }
-end
-
-# Archivio sessioni (storico persistito)
-def index
-  render inertia: "Session/Archive",        # lista sessioni per azienda/data
-         props: { sessions: @sessions }
-end
-
+# update = sink di auto-save (raw fetch, head :ok — NON via Inertia router)
+# Le bitmap sono servite da PresentationAssetsController
+#   GET /presentation_assets/:dir/:filename  (:dir = "criticalities" | segment id)
 ```
 
 ### Stato di sessione e persistenza
@@ -438,13 +435,34 @@ Le seguenti funzionalità sono note ma escluse dall'MVP:
 - [x] **Autenticazione:** MVP con **account condiviso** singolo per il team pre-sale. L'architettura deve restare aperta a un'**utenza multipla** in futuro senza riscritture sostanziali.
 - [x] **Email mittente:** Per l'MVP `loredana.mosca@antos.it`. Deve essere **configurabile** (variabile d'ambiente) in vista di un cambio futuro.
 - [x] **Destinatario email recap:** Il **prospect**. Nell'MVP l'indirizzo viene inserito manualmente dall'operatore; in futuro probabilmente arriverà da HubSpot.
-- [x] **Numero di slide per criticità:** Tra **5 e 8 slide** per criticità. Alcune slide non sono statiche ma una **sequenza di step/bitmap** (mini-animazione) — vedi schema slide in §8.
+- [x] **Numero di slide per criticità:** **Non fisso** — la struttura (numero di step e di fasi) è **file-driven**, dedotta dai bitmap `C<NN>-step<Y>[.f<Z>].png` in `content/assets/criticalities/`. Uno step può avere più fasi (mini-animazione) — vedi §8 e `asset-pipeline-spec.md`.
 - [ ] **Hosting credenziali:** Chi gestisce l'account di hosting e le variabili d'ambiente (API key email, JWT secret)?
 - [x] **Accesso Figma per token:** I valori esatti di colore e font sono da estrarre dal file Figma. Rimandato: lo si farà più avanti, prima della rifinitura delle slide.
 
 ---
 
-## 14. Riferimenti
+## 14. Stato di implementazione
+
+Sintesi di cosa è costruito (al 2026-06-18), per orientare gli sviluppi futuri. Il dettaglio del modello asset è in [`asset-pipeline-spec.md`](./asset-pipeline-spec.md).
+
+**Costruito e testato**
+- **Auth + schermate interne** (login, setup, profiling, result) con design system del template.
+- **Sessione persistita + auto-save** (`PresaleSession`): azienda, contatto, segmento, profilo operativo, criticità discusse, **domande catturate** (colonna `jsonb`), stato. Auto-save via raw `fetch` su `PATCH update` (`head :ok`, non Inertia).
+- **Profilazione**: `decision-tree.json` percorso client-side (`Profiling.tsx`); profilo = foglia (codici uniti da `-`).
+- **Subset criticità**: `mappings.json` con **126 incroci** (7×18); `ContentConfig.criticalities_for`.
+- **Superficie prospect** (`Present.tsx`, autonoma, niente design system): hub → flow (player) → chiusura, stato vista effimero; shortcut `C`/`S`/`F`/`Q`; cattura domande legate allo step.
+- **Pipeline asset file-driven per criticità**: bitmap `C<NN>-step<Y>[-<token>][.f<Z>].png` in `content/assets/criticalities/`; struttura step/fasi dedotta dai file; risoluzione **token > segmento (override) > condiviso > placeholder** (`ContentConfig.steps_for`); rotta `presentation_assets/:dir/:filename` + `PresentationAssetsController`. `slides.json` = testo-per-step.
+- **Workflow Figma → repo**: autoring **per criticità** (pagine C01–C13), sync on-demand via MCP (vedi `asset-pipeline-spec.md`).
+
+**Da completare / fuori da ciò che è stato costruito finora**
+- **Arte reale delle bitmap**: oggi `criticalities/` contiene **placeholder** etichettati; vanno ri-esportati con i contenuti veri (stessi nomi → sovrascrittura).
+- **Testi per-step** in `slides.json`: carry-over dai vecchi titoli dove possibile, altrimenti `null` (da autorare).
+- **Debrief / recap email / archivio avanzato** (§7 Fase 3): esiste solo l'`index` base; debrief, editing domande, invio recap via Resend **non** ancora implementati.
+- **Pulizia pagine-segmento Figma** obsolete; **override per segmento** (meccanismo di autoring); **mini-video** (embed remoto). Tutti deferred.
+
+---
+
+## 15. Riferimenti
 
 - **Figma file:** `https://www.figma.com/design/9DFvljjqtdEtJgOzCPrpNq/01--Funnel--Pre-sale-Meeting--1a-?node-id=1-26`
 - **Brand:** Bravo Manufacturing (prodotto di Antos SRL)
