@@ -123,4 +123,38 @@ class ContentConfigTest < ActiveSupport::TestCase
     assert_equal [], ContentConfig.decode_profile(nil)
     assert_equal [], ContentConfig.decode_profile("")
   end
+
+  test "steps_for discovers the step/phase structure from the bitmaps" do
+    steps = ContentConfig.steps_for(
+      criticality_id: 1,
+      segment: "meccanica",
+      operational_profile: "ho-excel-bom-bom1"
+    )
+
+    assert_equal %w[ C01-step1 C01-step2 C01-step3 ], steps.map { |s| s[:id] }
+    # step3 has two phases (C01-step3.f1 / .f2)
+    assert_equal 2, steps.last[:phases].size
+    assert(steps.first[:phases].first.include?("criticalities/C01-step1.png"))
+    # title/body come from slides.json (carried over)
+    assert_equal "Tempi disponibili da subito.", steps.first[:title]
+  end
+
+  test "steps_for applies a token override when the profile contains the token" do
+    without = ContentConfig.steps_for(
+      criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
+    )
+    with = ContentConfig.steps_for(
+      criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bomN"
+    )
+
+    step2 = ->(steps) { steps.find { |s| s[:id] == "C01-step2" }[:phases].first }
+    assert(step2.call(without).end_with?("C01-step2.png"))
+    assert(step2.call(with).end_with?("C01-step2-bomN.png"))
+  end
+
+  test "steps_for returns [] for a criticality with no bitmaps" do
+    assert_equal [], ContentConfig.steps_for(
+      criticality_id: 99, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
+    )
+  end
 end

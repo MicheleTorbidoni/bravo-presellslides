@@ -9,6 +9,8 @@
 # picked up without restarting the server.
 module ContentConfig
   CONFIG_DIR = Rails.root.join("content", "config")
+  ASSETS_DIR = Rails.root.join("content", "assets")
+  SHARED_DIR = "criticalities" # content/assets/criticalities/ holds the shared bitmaps
 
   class << self
     def segments
@@ -29,6 +31,37 @@ module ContentConfig
 
     def slides
       load_config("slides").fetch(:criticalities)
+    end
+
+    # Builds the resolved slide flow for a criticality, file-driven: the step and
+    # phase structure is discovered from the shared bitmaps in
+    # content/assets/criticalities/ (named C<NN>-step<Y>[-<token>][.f<Z>].png),
+    # and each phase image is resolved against the operative context with the
+    # chain: token override > segment override > shared default.
+    #
+    # Returns an ordered array of steps:
+    #   [ { id: "C01-step2", title:, body:, phases: ["/presentation_assets/.../C01-step2.png", …] }, … ]
+    # Title/body come from slides.json (text-per-step); a step/phase with no file
+    # resolves to no URL and the player shows a placeholder.
+    def steps_for(criticality_id:, segment:, operational_profile:)
+      code = format("C%02d", criticality_id)
+      tokens = operational_profile.to_s.split("-")
+
+      structure = step_structure(code) # { step_index => [phase_or_nil, …] }
+      texts = step_texts(criticality_id)
+
+      structure.keys.sort.map do |y|
+        phases = structure[y].map do |phase|
+          resolve_phase_url(code: code, step: y, phase: phase, segment: segment, tokens: tokens)
+        end.compact
+        text = texts[y - 1] || {}
+        {
+          id: "#{code}-step#{y}",
+          title: text[:title],
+          body: text[:body],
+          phases: phases
+        }
+      end
     end
 
     # Resolves the relevant criticalities for a (segment, operational_profile)
@@ -116,6 +149,74 @@ module ContentConfig
       def read_config(name)
         path = CONFIG_DIR.join("#{name}.json")
         JSON.parse(path.read, symbolize_names: true)
+      end
+
+      # Discovers the step/phase structure of a criticality from the shared
+      # default bitmaps (no token suffix). Returns { step_index => [phases] },
+      # where phases is [nil] for a single-image step or [1, 2, …] for a
+      # multi-phase step. Token variants and segment overrides do not change the
+      # structure — they only swap which file a given (step, phase) resolves to.
+      def step_structure(code)
+        dir = ASSETS_DIR.join(SHARED_DIR)
+        return {} unless Dir.exist?(dir)
+
+        by_step = Hash.new { |h, k| h[k] = [] }
+        Dir.children(dir).each do |file|
+          parsed = parse_asset_name(file)
+          next unless parsed && parsed[:code] == code && parsed[:token].nil?
+
+          by_step[parsed[:step]] << parsed[:phase]
+        end
+        by_step.transform_values { |phases| phases.uniq.sort_by { |p| p || 0 } }
+      end
+
+      # Parses "C01-step3.f1[-token].png" → { code:, step:, token:, phase: }.
+      # Returns nil for names that don't match the convention.
+      def parse_asset_name(file)
+        base = File.basename(file, ".png")
+        rest, phase = base.split(".f", 2)
+        return nil if phase && phase !~ /\A\d+\z/
+
+        parts = rest.split("-")
+        return nil unless parts.size >= 2 && parts[0] =~ /\AC\d{2}\z/ && parts[1] =~ /\Astep\d+\z/
+
+        {
+          code: parts[0],
+          step: parts[1].delete_prefix("step").to_i,
+          token: (parts[2..].join("-") if parts.size > 2),
+          phase: phase&.to_i
+        }
+      end
+
+      # Resolves one (step, phase) to a served URL, most specific first:
+      # token (shared) > segment override > shared default. Returns nil if none.
+      def resolve_phase_url(code:, step:, phase:, segment:, tokens:)
+        suffix = phase ? ".f#{phase}" : ""
+
+        # Deepest decision wins: try the profile's tokens from the leaf back.
+        tokens.reverse_each do |token|
+          name = "#{code}-step#{step}-#{token}#{suffix}.png"
+          return asset_url(SHARED_DIR, name) if asset_exists?(SHARED_DIR, name)
+        end
+
+        default = "#{code}-step#{step}#{suffix}.png"
+        return asset_url(segment, default) if segment.present? && asset_exists?(segment, default)
+        return asset_url(SHARED_DIR, default) if asset_exists?(SHARED_DIR, default)
+
+        nil
+      end
+
+      def step_texts(criticality_id)
+        crit = slides.find { |c| c[:id] == criticality_id }
+        crit ? Array(crit[:steps]) : []
+      end
+
+      def asset_exists?(dir, filename)
+        File.file?(ASSETS_DIR.join(dir, filename))
+      end
+
+      def asset_url(dir, filename)
+        "/presentation_assets/#{dir}/#{filename}"
       end
   end
 end

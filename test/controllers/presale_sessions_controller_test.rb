@@ -100,9 +100,11 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     props = JSON.parse(CGI.unescapeHTML(page_json))["props"]
 
     assert_equal "meccanica", props.dig("session", "segment")
-    # slides.json defines slides for criticalities 1 and 4, keyed by id.
-    assert props["slidesByCriticality"].key?("1")
-    assert_equal "concept", props.dig("slidesByCriticality", "1", 0, "type")
+    # Steps are discovered file-driven from content/assets/criticalities/, keyed
+    # by criticality id; each step carries its resolved phase image URLs.
+    assert props["stepsByCriticality"].key?("1")
+    assert_equal "C01-step1", props.dig("stepsByCriticality", "1", 0, "id")
+    assert(props.dig("stepsByCriticality", "1", 0, "phases").first.include?("C01-step1.png"))
     assert_equal [], props["capturedQuestions"]
   end
 

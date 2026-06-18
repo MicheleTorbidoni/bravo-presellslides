@@ -79,13 +79,13 @@ class PresentFlowTest < ApplicationSystemTestCase
     # Clicking a criticality pill starts its flow immediately (no separate button).
     react_click "Tempi di produzione non raccolti"
 
-    # The real slide player renders the first criticality's first slide (concept),
-    # with the prospect's name interpolated into the screenshot slide further on.
-    assert_text "Un ciclo assistito e fluido."
-    page.save_screenshot("tmp/screenshots/present-slide-concept.png")
+    # The player renders the first criticality's first step; its title (from
+    # slides.json) is overlaid by the player.
+    assert_text "Tempi disponibili da subito."
+    page.save_screenshot("tmp/screenshots/present-slide-step1.png")
 
     # Capture a question with `Q`, type it, and save it — it persists on the session
-    # bound to the current slide.
+    # bound to the current step.
     page.execute_script(
       "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', bubbles: true }))"
     )
@@ -94,9 +94,9 @@ class PresentFlowTest < ApplicationSystemTestCase
     react_click "Salva domanda"
     assert_no_text "Cattura domanda"
 
-    # Step through every slide/step with the right arrow until the flow completes
-    # and we return to the hub (concept → screenshot → sequence ×3 steps).
-    8.times do
+    # Step through every step/phase with the right arrow until the flow completes
+    # and we return to the hub (C01: step1 → step2 → step3.f1 → step3.f2).
+    4.times do
       page.execute_script(
         "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))"
       )
@@ -106,12 +106,12 @@ class PresentFlowTest < ApplicationSystemTestCase
     # The completion is persisted on the session.
     assert_equal [ 1 ], @session.reload.discussed_criticalities
 
-    # The captured question persisted, bound to criticality 1 and a slide.
+    # The captured question persisted, bound to criticality 1 and the current step.
     questions = @session.reload.captured_questions
     assert_equal 1, questions.length
     assert_equal "È compatibile col nostro gestionale?", questions.first["text"]
     assert_equal 1, questions.first["criticality_id"]
-    assert questions.first["slide_id"].present?
+    assert_equal "C01-step1", questions.first["slide_id"]
 
     # The `C` shortcut jumps to the closing page from anywhere, with the
     # prospect's names interpolated. Dispatch the keydown on window directly so it
@@ -127,32 +127,33 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_equal "closed", @session.reload.status
   end
 
-  test "a missing asset does not poison a previously shown image when navigating back" do
-    # precisione has the shared `concept` asset (content/assets/common) but no
-    # segment-variant `screenshot`, so the screenshot slide 404s -> placeholder.
-    # Regression: going back to the concept must show the image again, not keep
-    # the placeholder from the failed screenshot load.
-    @session.update!(segment: "precisione", operational_profile: "ho-excel-bom-bom1")
-
+  test "navigating steps and phases forward and back shows the right image" do
     visit present_presale_session_path(@session)
     assert_text "Dove fa più difficoltà la tua azienda?"
     react_click "Tempi di produzione non raccolti"
 
-    # Concept slide: the shared asset loads.
-    assert_selector "img[src*='criticality-1-concept']", wait: 5
+    # C01: step1 -> step2 -> step3.f1 -> step3.f2 (the image src tracks position,
+    # and going back re-shows the previous step's image — SlideImage src reset).
+    arrow = ->(key) do
+      page.execute_script(
+        "window.dispatchEvent(new KeyboardEvent('keydown', { key: '#{key}', bubbles: true }))"
+      )
+    end
 
-    # Forward to the screenshot slide: its segment asset is missing -> placeholder.
-    page.execute_script(
-      "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))"
-    )
-    assert_text "criticality-1-screenshot.png", wait: 5
-
-    # Back to the concept slide: the image must render again (failed state reset).
-    page.execute_script(
-      "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))"
-    )
-    assert_selector "img[src*='criticality-1-concept']", wait: 5
-    assert_no_text "criticality-1-concept.png"
+    assert_selector "img[src*='C01-step1.png']", wait: 5
+    arrow.call("ArrowRight")
+    assert_selector "img[src*='C01-step2.png']", wait: 5
+    arrow.call("ArrowRight")
+    assert_selector "img[src*='C01-step3.f1.png']", wait: 5
+    arrow.call("ArrowRight")
+    assert_selector "img[src*='C01-step3.f2.png']", wait: 5
+    # Back through the phases/steps re-shows each earlier image.
+    arrow.call("ArrowLeft")
+    assert_selector "img[src*='C01-step3.f1.png']", wait: 5
+    arrow.call("ArrowLeft")
+    assert_selector "img[src*='C01-step2.png']", wait: 5
+    arrow.call("ArrowLeft")
+    assert_selector "img[src*='C01-step1.png']", wait: 5
   end
 
   test "the S shortcut leaves the presentation for the sessions list" do
