@@ -258,7 +258,7 @@ I subset per segmento attuali: meccanica `[1,2,3,4,7,8,10]`, elettronica `[3,7,8
 
 **Step e fasi.** La risoluzione di una criticità è una sequenza di **step** (ognuno col suo titolo/body, overlay del player). Uno step può avere più **fasi** (`.f1`, `.f2`, …): più bitmap mostrate in sequenza (avanzo con la freccia, pallini indicatori) mantenendo fisso titolo/body. `step1` è l'apertura. Non esistono più i tipi `concept`/`screenshot`/`sequence`.
 
-**Organizzazione e override.** L'autoring è **per criticità**: le bitmap condivise stanno in `content/assets/criticalities/` (flat, `C<NN>-step…png`) e valgono per tutti i segmenti che includono la criticità. La **verticalizzazione per segmento** è un override opzionale in `content/assets/<segmento>/`. Un'immagine può avere un **override per token decisionale** (es. `-bomN`). Catena di risoluzione: **token → segmento → condiviso → placeholder** (dettagli in `asset-pipeline-spec.md`).
+**Organizzazione e override.** L'autoring è **per segmento**: ogni segmento ha la sua cartella `content/assets/<segmento>/` (flat, `C<NN>-step…png`) con il proprio flusso completo, ed è **questa** a definire struttura (step/fasi) e immagini della criticità per quel segmento. `content/assets/criticalities/` è il **fallback condiviso** per le criticità che un segmento non copre. Un'immagine può avere un **override per token decisionale** (es. `-bomN`), combinabile col segmento (es. `<segmento>/C<NN>-step<Y>-<token>.png`). Catena di risoluzione immagine, dal più specifico: **segmento+token → token (condiviso) → segmento → condiviso → placeholder** (dettagli in `asset-pipeline-spec.md`).
 
 ---
 
@@ -435,7 +435,7 @@ Le seguenti funzionalità sono note ma escluse dall'MVP:
 - [x] **Autenticazione:** MVP con **account condiviso** singolo per il team pre-sale. L'architettura deve restare aperta a un'**utenza multipla** in futuro senza riscritture sostanziali.
 - [x] **Email mittente:** Per l'MVP `loredana.mosca@antos.it`. Deve essere **configurabile** (variabile d'ambiente) in vista di un cambio futuro.
 - [x] **Destinatario email recap:** Il **prospect**. Nell'MVP l'indirizzo viene inserito manualmente dall'operatore; in futuro probabilmente arriverà da HubSpot.
-- [x] **Numero di slide per criticità:** **Non fisso** — la struttura (numero di step e di fasi) è **file-driven**, dedotta dai bitmap `C<NN>-step<Y>[.f<Z>].png` in `content/assets/criticalities/`. Uno step può avere più fasi (mini-animazione) — vedi §8 e `asset-pipeline-spec.md`.
+- [x] **Numero di slide per criticità:** **Non fisso** — la struttura (numero di step e di fasi) è **file-driven** e **segment-driven**, dedotta dai bitmap `C<NN>-step<Y>[.f<Z>].png` della cartella del **segmento** (`content/assets/<segmento>/`), con `content/assets/criticalities/` come fallback. Ogni segmento può avere un flusso diverso. Uno step può avere più fasi (mini-animazione) — vedi §8 e `asset-pipeline-spec.md`.
 - [ ] **Hosting credenziali:** Chi gestisce l'account di hosting e le variabili d'ambiente (API key email, JWT secret)?
 - [x] **Accesso Figma per token:** I valori esatti di colore e font sono da estrarre dal file Figma. Rimandato: lo si farà più avanti, prima della rifinitura delle slide.
 
@@ -451,14 +451,14 @@ Sintesi di cosa è costruito (al 2026-06-18), per orientare gli sviluppi futuri.
 - **Profilazione**: `decision-tree.json` percorso client-side (`Profiling.tsx`); profilo = foglia (codici uniti da `-`).
 - **Subset criticità**: `mappings.json` con **126 incroci** (7×18); `ContentConfig.criticalities_for`.
 - **Superficie prospect** (`Present.tsx`, autonoma, niente design system): hub → flow (player) → chiusura, stato vista effimero; shortcut `C`/`S`/`F`/`Q`; cattura domande legate allo step.
-- **Pipeline asset file-driven per criticità**: bitmap `C<NN>-step<Y>[-<token>][.f<Z>].png` in `content/assets/criticalities/`; struttura step/fasi dedotta dai file; risoluzione **token > segmento (override) > condiviso > placeholder** (`ContentConfig.steps_for`); rotta `presentation_assets/:dir/:filename` + `PresentationAssetsController`. `slides.json` = testo-per-step.
+- **Pipeline asset file-driven e segment-driven**: bitmap `C<NN>-step<Y>[-<token>][.f<Z>].png` nelle cartelle `content/assets/<segment-id>/` (con `criticalities/` come fallback); **struttura step/fasi dedotta dai file della cartella del segmento** (`criticalities/` solo per le criticità che il segmento non copre); risoluzione immagine **segmento+token > token (condiviso) > segmento > condiviso > placeholder** (`ContentConfig.steps_for`); rotta `presentation_assets/:dir/:filename` + `PresentationAssetsController`. `slides.json` = testo-per-step.
 - **Workflow Figma → repo**: autoring **per criticità** (pagine C01–C13), sync on-demand via MCP (vedi `asset-pipeline-spec.md`).
 
 **Da completare / fuori da ciò che è stato costruito finora**
 - **Arte reale delle bitmap**: oggi `criticalities/` contiene **placeholder** etichettati; vanno ri-esportati con i contenuti veri (stessi nomi → sovrascrittura).
 - **Testi per-step** in `slides.json`: carry-over dai vecchi titoli dove possibile, altrimenti `null` (da autorare).
 - **Debrief / recap email / archivio avanzato** (§7 Fase 3): esiste solo l'`index` base; debrief, editing domande, invio recap via Resend **non** ancora implementati.
-- **Pulizia pagine-segmento Figma** obsolete; **override per segmento** (meccanismo di autoring); **mini-video** (embed remoto). Tutti deferred.
+- **Pulizia pagine-segmento Figma** obsolete; **mini-video** (embed remoto). Deferred. (La risoluzione dell'**override per segmento** — anche combinato col token — è implementata lato codice; restano da definire la convenzione di nome frame per il routing in fase di sync e l'arte reale.)
 
 ---
 

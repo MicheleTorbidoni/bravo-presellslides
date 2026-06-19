@@ -124,10 +124,12 @@ class ContentConfigTest < ActiveSupport::TestCase
     assert_equal [], ContentConfig.decode_profile("")
   end
 
-  test "steps_for discovers the step/phase structure from the bitmaps" do
+  # The shared `criticalities/` folder is the fallback baseline (segment: nil
+  # exercises it directly, without coupling to per-segment art).
+  test "steps_for discovers the step/phase structure from the shared bitmaps" do
     steps = ContentConfig.steps_for(
       criticality_id: 1,
-      segment: "meccanica",
+      segment: nil,
       operational_profile: "ho-excel-bom-bom1"
     )
 
@@ -141,10 +143,10 @@ class ContentConfigTest < ActiveSupport::TestCase
 
   test "steps_for applies a token override when the profile contains the token" do
     without = ContentConfig.steps_for(
-      criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
+      criticality_id: 1, segment: nil, operational_profile: "ho-excel-bom-bom1"
     )
     with = ContentConfig.steps_for(
-      criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bomN"
+      criticality_id: 1, segment: nil, operational_profile: "ho-excel-bom-bomN"
     )
 
     step2 = ->(steps) { steps.find { |s| s[:id] == "C01-step2" }[:phases].first }
@@ -154,7 +156,85 @@ class ContentConfigTest < ActiveSupport::TestCase
 
   test "steps_for returns [] for a criticality with no bitmaps" do
     assert_equal [], ContentConfig.steps_for(
-      criticality_id: 99, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
+      criticality_id: 90, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
     )
   end
+
+  # The tests below use fictitious criticalities (C97/C98/C99) so they create and
+  # remove their own fixtures without ever touching the real per-segment art. Each
+  # test owns a distinct code so they don't collide on disk when the suite runs in
+  # parallel processes.
+
+  test "steps_for takes the step/phase structure from the segment folder, shared as fallback" do
+    with_assets(
+      "criticalities/C97-step1.png", "criticalities/C97-step2.png",
+      "meccanica/C97-step1.png", "meccanica/C97-step2.png", "meccanica/C97-step3.png"
+    ) do
+      meccanica = ContentConfig.steps_for(
+        criticality_id: 97, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
+      )
+      elettronica = ContentConfig.steps_for(
+        criticality_id: 97, segment: "elettronica", operational_profile: "ho-excel-bom-bom1"
+      )
+
+      # meccanica authors its own flow (3 steps)
+      assert_equal %w[ C97-step1 C97-step2 C97-step3 ], meccanica.map { |s| s[:id] }
+      # a segment with no C97 art falls back to the shared structure (2 steps)
+      assert_equal %w[ C97-step1 C97-step2 ], elettronica.map { |s| s[:id] }
+    end
+  end
+
+  test "steps_for resolves the segment image and falls back to shared for other segments" do
+    with_assets("criticalities/C98-step1.png", "meccanica/C98-step1.png") do
+      assert(seg_step1_url(98, segment: "meccanica").end_with?("meccanica/C98-step1.png"))
+      assert(seg_step1_url(98, segment: "elettronica").end_with?("criticalities/C98-step1.png"))
+    end
+  end
+
+  test "steps_for precedence: segment+token > shared token > segment default > shared default" do
+    # segment+token beats the shared token
+    with_assets(
+      "criticalities/C99-step1.png", "criticalities/C99-step1-bomN.png",
+      "meccanica/C99-step1.png", "meccanica/C99-step1-bomN.png"
+    ) do
+      assert(seg_step1_url(99, segment: "meccanica", profile: "ho-excel-bom-bomN")
+        .end_with?("meccanica/C99-step1-bomN.png"))
+    end
+
+    # without a segment token file, the shared token beats the segment default;
+    # with no matching token, the segment default beats the shared default
+    with_assets(
+      "criticalities/C99-step1.png", "criticalities/C99-step1-bomN.png",
+      "meccanica/C99-step1.png"
+    ) do
+      assert(seg_step1_url(99, segment: "meccanica", profile: "ho-excel-bom-bomN")
+        .end_with?("criticalities/C99-step1-bomN.png"))
+      assert(seg_step1_url(99, segment: "meccanica", profile: "ho-excel-bom-bom1")
+        .end_with?("meccanica/C99-step1.png"))
+    end
+  end
+
+  private
+    def seg_step1_url(criticality_id, segment:, profile: "ho-excel-bom-bom1")
+      steps = ContentConfig.steps_for(
+        criticality_id: criticality_id, segment: segment, operational_profile: profile
+      )
+      step_id = format("C%02d-step1", criticality_id)
+      steps.find { |s| s[:id] == step_id }&.dig(:phases)&.first
+    end
+
+    # Creates tiny PNG fixtures under content/assets/ for the duration of the
+    # block, then removes them. Lets the file-driven resolver be exercised
+    # without committing art to the repo. Use only filenames (e.g. C99-*) that
+    # do not collide with real bitmaps, since the fixtures are deleted on exit.
+    def with_assets(*relative_paths)
+      paths = relative_paths.map { |rp| Rails.root.join("content", "assets", rp) }
+      paths.each do |path|
+        FileUtils.mkdir_p(path.dirname)
+        File.binwrite(path, "")
+      end
+      yield
+    ensure
+      paths&.each { |path| FileUtils.rm_f(path) }
+    end
 end
