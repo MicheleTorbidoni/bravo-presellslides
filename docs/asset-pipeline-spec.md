@@ -26,6 +26,7 @@ Una criticità è una **sequenza di step**; ogni step ha un **testo** (titolo/bo
 - `.f<Z>` = fase, **col punto**, opzionale, in coda. Assente ⇒ singola immagine.
 - `-MAIN` = residuo di lavorazione, **scartato** dal sync.
 - Parsing: stacca `.f<Z>` (punto), poi split per `-` → `C<NN>`, `step<Y>`, eventuale `<token>`. (Token mai numerico ⇒ niente ambiguità con la fase.)
+- ⚠️ **La fase usa il punto `.f<Z>`, mai il trattino `-f<Z>`.** Un `-f1` viene interpretato come *token* (es. `C05-step2-f1.png` → token `f1`, mai selezionabile) e il file diventa morto. Controllare sempre l'export su questo.
 
 | Frame Figma | File |
 |---|---|
@@ -50,14 +51,16 @@ Una criticità è una **sequenza di step**; ogni step ha un **testo** (titolo/bo
 Per (criticità, step, fase, segmento, profilo operativo), dal più specifico:
 
 ```
-1. token      criticalities/C<NN>-step<Y>-<token>[.f<Z>].png   (se il profilo contiene quel token)
-2. segmento   <segmento>/C<NN>-step<Y>[.f<Z>].png                     (override per segmento)
-3. condiviso  criticalities/C<NN>-step<Y>[.f<Z>].png            (default)
-4. placeholder (nessun file) → placeholder client col nome file
+1. segmento+token  <segmento>/C<NN>-step<Y>-<token>[.f<Z>].png    (token verticalizzato per segmento)
+2. token           criticalities/C<NN>-step<Y>-<token>[.f<Z>].png (token condiviso, se il profilo lo contiene)
+3. segmento        <segmento>/C<NN>-step<Y>[.f<Z>].png            (override per segmento)
+4. condiviso       criticalities/C<NN>-step<Y>[.f<Z>].png         (default)
+5. placeholder     (nessun file) → placeholder client col nome file
 ```
 
 Regole:
-- **Token singolo**; se più token del profilo combaciassero, vince la decisione più profonda nell'albero. Token non raggiungibili → mai selezionati.
+- **Token**: si itera dai token del profilo dalla decisione più profonda dell'albero verso la radice; **per ciascun token la variante del segmento batte quella condivisa**. La prima che esiste vince. Token non raggiungibili → mai selezionati.
+- **Struttura segment-driven**: la sequenza di step e di fasi di una criticità è dedotta dai file **default (senza token)** della cartella del **segmento** (`<segmento>/C<NN>-step<Y>[.f<Z>].png`). Ogni segmento autora il proprio flusso: può avere più/meno step o un diverso numero di fasi rispetto agli altri. La cartella condivisa `criticalities/` è il **fallback**: la sua struttura si usa solo per le criticità che il segmento **non** copre affatto. I file con token non definiscono step nuovi — sovrascrivono solo l'immagine di uno step già esistente. (`ContentConfig.step_structure`)
 - **Fasi**: per (step + variante) se esistono `.f1`, `.f2`, … ⇒ N fasi in sequenza (pallini), titolo/body fissi; altrimenti 1 immagine. Non mescolare `…stepY.png` con `…stepY.fN.png`.
 
 ---
@@ -80,7 +83,8 @@ Ordine = step1, step2, …. `{{company_name}}`/`{{contact_name}}` interpolati a 
 - **Una pagina per criticità** (C01–C13). Frame top-level = una bitmap. Contenuto = istanze di componenti riusati; il sync **rasterizza** il frame a PNG piatto @2x (~2680px lato lungo).
 - Varianti per token = frame `C<NN>-step<Y>-<token>-MAIN` (label umana ammessa, tradotta in token via `decision-tree.json`; match tollerante).
 - Il sync scarta `-MAIN`, scrive in `content/assets/criticalities/` (flat).
-- **Override per segmento**: meccanismo di autoring da definire quando servirà il primo override reale (deferred).
+- **Verticalizzazione per segmento** (implementato lato codice): lo screenshot dentro la slide è un **component set** (`screenshot/C<NN>-step<Y>`) con proprietà variante `Segmento`. La slide è autorata una volta e contiene un'**istanza** di quel componente; per verticalizzare si imposta la variante di segmento sull'istanza e si esporta un frame per ogni `(segmento, step)` che serve davvero (gli altri ricadono sul condiviso, niente export obbligatorio per tutti e 7).
+  - **Routing del file**: l'export deve depositare il PNG in `content/assets/<segmento>/` con lo **stesso filename** del default (`C<NN>-step<Y>[-<token>][.f<Z>].png`); `<segmento>` = id esatto di `segments.json` (con trattini). È solo il path su disco che il runtime legge. Serve quindi una convenzione di nome frame che codifichi il segmento (es. pagina-per-segmento, oppure suffisso `…@<segmento>-MAIN`) così il sync sa in quale cartella scrivere; senza segmento → `criticalities/`.
 - Esecuzione on-demand via Claude + MCP Figma (dry-run poi export). Nessuno script committato.
 
 ---

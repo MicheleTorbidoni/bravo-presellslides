@@ -47,7 +47,7 @@ module ContentConfig
       code = format("C%02d", criticality_id)
       tokens = operational_profile.to_s.split("-")
 
-      structure = step_structure(code) # { step_index => [phase_or_nil, …] }
+      structure = step_structure(code, segment) # { step_index => [phase_or_nil, …] }
       texts = step_texts(criticality_id)
 
       structure.keys.sort.map do |y|
@@ -151,17 +151,30 @@ module ContentConfig
         JSON.parse(path.read, symbolize_names: true)
       end
 
-      # Discovers the step/phase structure of a criticality from the shared
-      # default bitmaps (no token suffix). Returns { step_index => [phases] },
-      # where phases is [nil] for a single-image step or [1, 2, …] for a
-      # multi-phase step. Token variants and segment overrides do not change the
-      # structure — they only swap which file a given (step, phase) resolves to.
-      def step_structure(code)
-        dir = ASSETS_DIR.join(SHARED_DIR)
-        return {} unless Dir.exist?(dir)
+      # Discovers the step/phase structure of a criticality from the default
+      # bitmaps (no token suffix). Returns { step_index => [phases] }, where
+      # phases is [nil] for a single-image step or [1, 2, …] for a multi-phase
+      # step. The structure is segment-driven: the segment folder is the source
+      # of truth for the criticalities it covers (each segment authors its own
+      # flow); the shared folder is the fallback for criticalities the segment
+      # does not provide. Token variants do not change the structure — they only
+      # swap which file a given (step, phase) resolves to.
+      def step_structure(code, segment)
+        segment_structure = structure_in_dir(segment, code) if segment.present?
+        return segment_structure if segment_structure.present?
+
+        structure_in_dir(SHARED_DIR, code)
+      end
+
+      # Builds { step_index => [phases] } from the default (no-token) bitmaps of
+      # one criticality in a single directory. Empty when the directory is
+      # absent or has no matching files.
+      def structure_in_dir(dir, code)
+        path = ASSETS_DIR.join(dir)
+        return {} unless Dir.exist?(path)
 
         by_step = Hash.new { |h, k| h[k] = [] }
-        Dir.children(dir).each do |file|
+        Dir.children(path).each do |file|
           parsed = parse_asset_name(file)
           next unless parsed && parsed[:code] == code && parsed[:token].nil?
 
@@ -189,13 +202,16 @@ module ContentConfig
       end
 
       # Resolves one (step, phase) to a served URL, most specific first:
-      # token (shared) > segment override > shared default. Returns nil if none.
+      # segment+token > token (shared) > segment default > shared default.
+      # Returns nil if none.
       def resolve_phase_url(code:, step:, phase:, segment:, tokens:)
         suffix = phase ? ".f#{phase}" : ""
 
         # Deepest decision wins: try the profile's tokens from the leaf back.
+        # For each token, a segment-verticalized variant beats the shared one.
         tokens.reverse_each do |token|
           name = "#{code}-step#{step}-#{token}#{suffix}.png"
+          return asset_url(segment, name) if segment.present? && asset_exists?(segment, name)
           return asset_url(SHARED_DIR, name) if asset_exists?(SHARED_DIR, name)
         end
 
