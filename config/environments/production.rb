@@ -59,6 +59,11 @@ Rails.application.configure do
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "example.com" }
 
+  # Send the prospect recap via Resend (API key from RESEND_API_KEY, see
+  # config/initializers/resend.rb). The :resend delivery method is registered by
+  # the resend gem's railtie.
+  config.action_mailer.delivery_method = :resend
+
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via rails credentials:edit.
   # config.action_mailer.smtp_settings = {
   #   user_name: Rails.application.credentials.dig(:smtp, :user_name),

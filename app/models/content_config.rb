@@ -34,6 +34,37 @@ module ContentConfig
       load_config("slides").fetch(:criticalities)
     end
 
+    def videos
+      load_config("videos").fetch(:videos)
+    end
+
+    # Resolves the deep-dive video URL for a criticality in the session's operative
+    # context, most specific first — mirroring resolve_phase_url. videos.json shape
+    # per criticality: { url:, tokens: { <token>: url }, segments: { <segment>: {
+    # url:, tokens: { <token>: url } } } }. For each profile token (deepest decision
+    # first) try the segment+token override, then the shared token; then the segment
+    # default, then the shared default. Returns nil when nothing matches (the recap
+    # then simply omits the link).
+    def video_url_for(criticality_id:, segment:, operational_profile:)
+      entry = videos.find { |v| v[:id] == criticality_id }
+      return nil unless entry
+
+      seg = segment.present? ? entry.dig(:segments, segment.to_sym) : nil
+      tokens = operational_profile.to_s.split("-")
+
+      tokens.reverse_each do |token|
+        if seg
+          seg_token = seg.dig(:tokens, token.to_sym)
+          return seg_token if seg_token.present?
+        end
+        shared_token = entry.dig(:tokens, token.to_sym)
+        return shared_token if shared_token.present?
+      end
+
+      return seg[:url] if seg && seg[:url].present?
+      entry[:url].presence
+    end
+
     # Builds the resolved slide flow for a criticality, file-driven: the step and
     # phase structure is discovered from the shared bitmaps in
     # content/assets/criticalities/ (named C<NN>-step<Y>[-<token>][.f<Z>].png),

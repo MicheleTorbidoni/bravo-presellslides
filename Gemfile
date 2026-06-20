@@ -57,6 +57,10 @@ end
 
 gem "inertia_rails", "~> 3.11"
 
+# Send transactional email (the prospect recap) via Resend in production; dev uses
+# letter_opener previews and test uses :test. Registers the :resend delivery method.
+gem "resend"
+
 gem "vite_rails", "~> 3.0"
 
 # Generate sitemap.xml so search engines and LLM crawlers can discover

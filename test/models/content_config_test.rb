@@ -1,4 +1,5 @@
 require "test_helper"
+require "minitest/mock"
 
 class ContentConfigTest < ActiveSupport::TestCase
   test "all config files load without raising" do
@@ -173,6 +174,47 @@ class ContentConfigTest < ActiveSupport::TestCase
     assert_equal "C01", crit[:code]
     assert_equal 3, crit[:step]
     assert_equal 2, crit[:phase]
+  end
+
+  test "video_url_for resolves the base url, or nil when absent" do
+    # criticality 1 has a placeholder URL in videos.json; criticality 3 is null.
+    url = ContentConfig.video_url_for(
+      criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
+    )
+    assert(url.include?("PLACEHOLDER-C01"))
+    assert_nil ContentConfig.video_url_for(
+      criticality_id: 3, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
+    )
+    assert_nil ContentConfig.video_url_for(
+      criticality_id: 999, segment: nil, operational_profile: nil
+    )
+  end
+
+  test "video_url_for precedence: segment+token > token > segment > base" do
+    fixture = [ {
+      id: 50,
+      url: "BASE",
+      tokens: { bomN: "SHARED-TOKEN" },
+      segments: { meccanica: { url: "SEG", tokens: { bomN: "SEG-TOKEN" } } }
+    } ]
+    ContentConfig.stub :videos, fixture do
+      # segment+token override is the most specific
+      assert_equal "SEG-TOKEN", ContentConfig.video_url_for(
+        criticality_id: 50, segment: "meccanica", operational_profile: "ho-excel-bom-bomN"
+      )
+      # a segment with no entry falls through to the shared token override
+      assert_equal "SHARED-TOKEN", ContentConfig.video_url_for(
+        criticality_id: 50, segment: "elettronica", operational_profile: "ho-excel-bom-bomN"
+      )
+      # no matching token → the segment default beats the base
+      assert_equal "SEG", ContentConfig.video_url_for(
+        criticality_id: 50, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
+      )
+      # no segment, no matching token → the shared base
+      assert_equal "BASE", ContentConfig.video_url_for(
+        criticality_id: 50, segment: nil, operational_profile: "ho-excel-bom-bom1"
+      )
+    end
   end
 
   test "steps_for returns [] for a criticality with no bitmaps" do

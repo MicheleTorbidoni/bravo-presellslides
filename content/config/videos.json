@@ -1,0 +1,460 @@
+{
+  "_comment": "Deep-dive video links per criticality, included in the recap email. Resolution mirrors the slide assets, most specific first: segment+token > token (shared) > segment default > base (shared). Per criticality: url = shared default; tokens = { <decisionToken>: url } shared per-token overrides; segments.<segmentId>.url = segment default; segments.<segmentId>.tokens = { <decisionToken>: url } segment+token overrides. Decision tokens are the answer codes from content/config/decision-tree.json (e.g. bomN). null = no video (the recap omits the link). URLs here are PLACEHOLDERS — author the real ones in place.",
+  "videos": [
+    {
+      "id": 1,
+      "url": "https://www.youtube.com/watch?v=PLACEHOLDER-C01",
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 2,
+      "url": "https://www.youtube.com/watch?v=PLACEHOLDER-C02",
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 3,
+      "url": null,
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 4,
+      "url": "https://www.youtube.com/watch?v=PLACEHOLDER-C04",
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 5,
+      "url": null,
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 6,
+      "url": null,
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 7,
+      "url": "https://www.youtube.com/watch?v=PLACEHOLDER-C07",
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 8,
+      "url": null,
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 9,
+      "url": null,
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 10,
+      "url": "https://www.youtube.com/watch?v=PLACEHOLDER-C10",
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 11,
+      "url": null,
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 12,
+      "url": null,
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    },
+    {
+      "id": 13,
+      "url": null,
+      "tokens": {},
+      "segments": {
+        "meccanica": {
+          "url": null,
+          "tokens": {}
+        },
+        "elettronica": {
+          "url": null,
+          "tokens": {}
+        },
+        "precisione": {
+          "url": null,
+          "tokens": {}
+        },
+        "lamiere-e-metalli": {
+          "url": null,
+          "tokens": {}
+        },
+        "alimentare": {
+          "url": null,
+          "tokens": {}
+        },
+        "imballaggi-e-packaging": {
+          "url": null,
+          "tokens": {}
+        },
+        "gomma-e-plastica": {
+          "url": null,
+          "tokens": {}
+        }
+      }
+    }
+  ]
+}

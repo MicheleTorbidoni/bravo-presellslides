@@ -17,6 +17,8 @@ Rails.application.routes.draw do
       get :profiling
       get :result
       get :present
+      get :debrief
+      post :recap
     end
   end
 
