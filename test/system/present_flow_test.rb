@@ -200,4 +200,26 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_nil questions.first["criticality_id"]
     assert_nil questions.first["slide_id"]
   end
+
+  test "from the closing page the operator opens the debrief and sends the recap" do
+    @session.update!(discussed_criticalities: [ 1 ])
+    visit present_presale_session_path(@session)
+    skip_intro
+
+    # Jump to the closing page (C), then hand over to the internal debrief.
+    press_key("c")
+    assert_text "Grazie"
+    react_click "Vai al debrief"
+    assert_text "Debrief"
+    page.save_screenshot("tmp/screenshots/debrief.png")
+
+    # Open the send-recap modal, fill the recipient (body is pre-composed), send.
+    react_click "Invia recap via email"
+    react_fill "recipient", "prospect@acme.it"
+    page.execute_script("arguments[0].click()", find('button[type="submit"]'))
+
+    # The recap was sent: status flips and the page shows the confirmation.
+    assert_text "Recap inviato"
+    assert_equal "recap_sent", @session.reload.status
+  end
 end

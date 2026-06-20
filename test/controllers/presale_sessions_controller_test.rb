@@ -111,6 +111,88 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [], props["capturedQuestions"]
   end
 
+  test "debrief renders the summary, enriched questions and a generated recap body" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(
+      company_name: "Acme Spa", contact_name: "Mario Rossi",
+      segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      discussed_criticalities: [ 1 ], status: "closed",
+      captured_questions: [
+        { id: "q1", text: "Domanda?", criticality_id: 1, slide_id: "C01-step1", asked_at: "2026-06-20T10:00:00Z" },
+        { id: "q2", text: "Generica?", criticality_id: nil, slide_id: nil, asked_at: "2026-06-20T10:05:00Z" }
+      ]
+    )
+
+    get debrief_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    assert_equal "meccanica", props.dig("session", "segment")
+    assert_equal "closed", props.dig("session", "status")
+    assert_includes props["discussedCriticalities"], "Tempi di produzione non raccolti"
+    # captured questions are enriched with the criticality label ("Generale" if none)
+    assert_equal "Tempi di produzione non raccolti", props.dig("capturedQuestions", 0, "criticality_label")
+    assert_equal "Generale", props.dig("capturedQuestions", 1, "criticality_label")
+    # the generated body includes the deep-dive video links for hub themes with a URL
+    assert_includes props["defaultRecapBody"], "Approfondimenti video:"
+    assert_includes props["defaultRecapBody"], "PLACEHOLDER-C01"
+  end
+
+  test "recap sends the email, marks the session recap_sent and redirects to the debrief" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(company_name: "Acme", status: "closed")
+
+    assert_emails 1 do
+      post recap_presale_session_path(session),
+           params: { recipient: "prospect@acme.it", body: "Ciao, ecco il recap." }
+    end
+
+    assert_redirected_to debrief_presale_session_path(session)
+    assert_equal "recap_sent", session.reload.status
+    mail = ActionMailer::Base.deliveries.last
+    assert_equal [ "prospect@acme.it" ], mail.to
+    assert_equal [ "loredana.mosca@antos.it" ], mail.from
+  end
+
+  test "recap with an invalid recipient does not send and keeps the status" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(status: "closed")
+
+    assert_no_emails do
+      post recap_presale_session_path(session),
+           params: { recipient: "not-an-email", body: "Ciao" }
+    end
+
+    assert_response :redirect
+    assert_equal "closed", session.reload.status
+  end
+
+  test "recap with an empty body does not send" do
+    sign_in
+    session = presale_sessions(:one)
+
+    assert_no_emails do
+      post recap_presale_session_path(session),
+           params: { recipient: "prospect@acme.it", body: "   " }
+    end
+
+    assert_equal "in_progress", session.reload.status
+  end
+
+  test "a user cannot debrief or send a recap for another user's session" do
+    sign_in
+    other = users(:two).presale_sessions.create!
+
+    get debrief_presale_session_path(other)
+    assert_response :not_found
+
+    post recap_presale_session_path(other), params: { recipient: "p@acme.it", body: "x" }
+    assert_response :not_found
+  end
+
   test "update persists captured questions via the auto-save endpoint" do
     sign_in
     session = presale_sessions(:one)

@@ -99,6 +99,7 @@ GEM
     concurrent-ruby (1.3.5)
     connection_pool (2.5.4)
     crass (1.0.6)
+    csv (3.3.5)
     date (3.5.0)
     debug (1.11.0)
       irb (~> 1.10)
@@ -114,6 +115,10 @@ GEM
       raabro (~> 1.4)
     globalid (1.3.0)
       activesupport (>= 6.1)
+    httparty (0.24.2)
+      csv
+      mini_mime (>= 1.0.0)
+      multi_xml (>= 0.5.2)
     i18n (1.14.7)
       concurrent-ruby (~> 1.0)
     inertia_rails (3.11.0)
@@ -155,6 +160,8 @@ GEM
     mini_mime (1.1.5)
     minitest (5.26.0)
     msgpack (1.8.0)
+    multi_xml (0.9.1)
+      bigdecimal (>= 3.1, < 5)
     mutex_m (0.3.0)
     net-imap (0.5.12)
       date
@@ -241,6 +248,9 @@ GEM
     regexp_parser (2.11.3)
     reline (0.6.2)
       io-console (~> 0.5)
+    resend (1.5.0)
+      base64
+      httparty (>= 0.22.0)
     rexml (3.4.4)
     rubocop (1.81.7)
       json (~> 2.3)
@@ -349,6 +359,7 @@ DEPENDENCIES
   propshaft
   puma (>= 5.0)
   rails (~> 8.0.4)
+  resend
   rubocop-rails-omakase
   selenium-webdriver
   sitemap_generator
