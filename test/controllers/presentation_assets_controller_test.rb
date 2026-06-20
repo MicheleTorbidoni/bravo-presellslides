@@ -18,6 +18,14 @@ class PresentationAssetsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "image/png", response.media_type
   end
 
+  test "serves a shared intro bitmap" do
+    sign_in
+    get presentation_asset_path(dir: "intro", filename: "Intro-step1.png")
+
+    assert_response :success
+    assert_equal "image/png", response.media_type
+  end
+
   test "returns 404 for a missing file in a valid dir (clean fallback)" do
     sign_in
     get presentation_asset_path(dir: "criticalities", filename: "does-not-exist.png")

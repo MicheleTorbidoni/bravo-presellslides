@@ -19,16 +19,53 @@ type SessionDetail = {
 
 type CapturedQuestion = {
   id: string
+  // null when captured from the hub (no criticality/slide in context).
+  criticality_id: number | null
   text: string
-  criticality_id: number
   slide_id: string | null
   asked_at: string
 }
 
 type View =
+  | { name: "intro" }
   | { name: "hub" }
   | { name: "flow"; criticalityId: number }
   | { name: "closing" }
+
+// Step/phase navigation math, shared by the intro and the per-criticality flow.
+// advancePosition returns the next position, or null when past the last phase of
+// the last step (the caller decides what "end" means: enter the hub / complete the
+// flow). backPosition returns the previous position, or null at the very start.
+function advancePosition(
+  steps: Step[],
+  pos: { stepIndex: number; phaseIndex: number },
+) {
+  const phases = steps[pos.stepIndex]?.phases ?? []
+  if (pos.phaseIndex < phases.length - 1) {
+    return { stepIndex: pos.stepIndex, phaseIndex: pos.phaseIndex + 1 }
+  }
+  if (pos.stepIndex < steps.length - 1) {
+    return { stepIndex: pos.stepIndex + 1, phaseIndex: 0 }
+  }
+  return null
+}
+
+function backPosition(
+  steps: Step[],
+  pos: { stepIndex: number; phaseIndex: number },
+) {
+  if (pos.phaseIndex > 0) {
+    return { stepIndex: pos.stepIndex, phaseIndex: pos.phaseIndex - 1 }
+  }
+  if (pos.stepIndex > 0) {
+    const prevPhases = steps[pos.stepIndex - 1]?.phases ?? []
+    return {
+      stepIndex: pos.stepIndex - 1,
+      phaseIndex: Math.max(0, prevPhases.length - 1),
+    }
+  }
+  return null
+}
 
 // Toggles native fullscreen on the whole document. Reads `document` only at call
 // time (inside the handler), so the module stays SSR-safe.
@@ -45,6 +82,7 @@ export default function Present({
   session,
   criticalities,
   prefiltered,
+  introSteps,
   discussedCriticalities,
   stepsByCriticality,
   capturedQuestions,
@@ -52,11 +90,15 @@ export default function Present({
   session: SessionDetail
   criticalities: Criticality[]
   prefiltered: boolean
+  introSteps: Step[]
   discussedCriticalities: number[]
   stepsByCriticality: Record<number, Step[]>
   capturedQuestions: CapturedQuestion[]
 }) {
-  const [view, setView] = useState<View>({ name: "hub" })
+  // The intro plays first when present; otherwise land straight on the hub.
+  const [view, setView] = useState<View>(
+    introSteps.length > 0 ? { name: "intro" } : { name: "hub" },
+  )
   const [discussed, setDiscussed] = useState<number[]>(discussedCriticalities)
   // Ephemeral position within the current flow: which step, and which phase of a
   // multi-phase step. Reset every time a flow is entered.
@@ -89,45 +131,53 @@ export default function Present({
     [discussed, session.id],
   )
 
-  // Advance: step through a step's phases, then to the next step, then complete
-  // the flow when past the last step. Empty criticalities complete immediately.
+  // Finishing the intro enters the hub (resetting the ephemeral position). From
+  // here on the session behaves exactly as before — the intro never replays.
+  const enterHub = useCallback(() => {
+    setPosition({ stepIndex: 0, phaseIndex: 0 })
+    setView({ name: "hub" })
+  }, [])
+
+  // Advance: step through a step's phases, then to the next step, then end the
+  // sequence. The intro and the flow share the step/phase math (advancePosition);
+  // only the "end" differs — the intro enters the hub, a flow completes (marking
+  // the criticality discussed). Empty criticalities complete immediately.
   const advance = useCallback(() => {
-    if (view.name !== "flow") return
-    const steps = stepsByCriticality[view.criticalityId] ?? []
-    if (steps.length === 0) {
+    const steps =
+      view.name === "intro"
+        ? introSteps
+        : view.name === "flow"
+          ? (stepsByCriticality[view.criticalityId] ?? [])
+          : null
+    if (!steps) return
+
+    if (view.name === "flow" && steps.length === 0) {
       completeFlow(view.criticalityId)
       return
     }
-    const phases = steps[position.stepIndex]?.phases ?? []
-    if (position.phaseIndex < phases.length - 1) {
-      setPosition({
-        stepIndex: position.stepIndex,
-        phaseIndex: position.phaseIndex + 1,
-      })
-    } else if (position.stepIndex < steps.length - 1) {
-      setPosition({ stepIndex: position.stepIndex + 1, phaseIndex: 0 })
-    } else {
+    const next = advancePosition(steps, position)
+    if (next) {
+      setPosition(next)
+    } else if (view.name === "intro") {
+      enterHub()
+    } else if (view.name === "flow") {
       completeFlow(view.criticalityId)
     }
-  }, [view, position, stepsByCriticality, completeFlow])
+  }, [view, position, introSteps, stepsByCriticality, completeFlow, enterHub])
 
   // Back: mirror of advance. Stays put at the very first phase of the first step.
   const back = useCallback(() => {
-    if (view.name !== "flow") return
-    const steps = stepsByCriticality[view.criticalityId] ?? []
-    if (position.phaseIndex > 0) {
-      setPosition({
-        stepIndex: position.stepIndex,
-        phaseIndex: position.phaseIndex - 1,
-      })
-    } else if (position.stepIndex > 0) {
-      const prevPhases = steps[position.stepIndex - 1]?.phases ?? []
-      setPosition({
-        stepIndex: position.stepIndex - 1,
-        phaseIndex: Math.max(0, prevPhases.length - 1),
-      })
-    }
-  }, [view, position, stepsByCriticality])
+    const steps =
+      view.name === "intro"
+        ? introSteps
+        : view.name === "flow"
+          ? (stepsByCriticality[view.criticalityId] ?? [])
+          : null
+    if (!steps) return
+
+    const prev = backPosition(steps, position)
+    if (prev) setPosition(prev)
+  }, [view, position, introSteps, stepsByCriticality])
 
   // Operator keyboard shortcuts. Global shortcuts (work from any view): C → closing,
   // S → leave to the sessions list, F/F11 → fullscreen. Flow-only: → advance,
@@ -150,16 +200,20 @@ export default function Present({
       } else if (e.key === "f" || e.key === "F" || e.key === "F11") {
         e.preventDefault()
         toggleFullscreen()
-      } else if (view.name === "flow") {
+      } else if (
+        (e.key === "q" || e.key === "Q") &&
+        (view.name === "flow" || view.name === "hub")
+      ) {
+        // Capture a question from a flow (bound to the slide) or the hub (unbound).
+        e.preventDefault()
+        setQuestionOpen(true)
+      } else if (view.name === "flow" || view.name === "intro") {
         if (e.key === "ArrowRight") {
           e.preventDefault()
           advance()
         } else if (e.key === "ArrowLeft") {
           e.preventDefault()
           back()
-        } else if (e.key === "q" || e.key === "Q") {
-          e.preventDefault()
-          setQuestionOpen(true)
         }
       }
     }
@@ -175,14 +229,15 @@ export default function Present({
     setView({ name: "flow", criticalityId: id })
   }
 
-  // Persist a captured question (auto-save), bound to the current step/criticality.
+  // Persist a captured question (auto-save). In a flow it's bound to the current
+  // step/criticality; from the hub there's no such context, so both are null.
   function saveQuestion(text: string) {
-    if (view.name !== "flow") return
+    if (view.name !== "flow" && view.name !== "hub") return
     const entry: CapturedQuestion = {
       id: crypto.randomUUID(),
       text,
-      criticality_id: view.criticalityId,
-      slide_id: currentStep?.id ?? null,
+      criticality_id: view.name === "flow" ? view.criticalityId : null,
+      slide_id: view.name === "flow" ? (currentStep?.id ?? null) : null,
       asked_at: new Date().toISOString(),
     }
     const next = [...captured, entry]
@@ -207,6 +262,16 @@ export default function Present({
         />
       </Head>
 
+      {view.name === "intro" && (
+        <SlidePlayer
+          step={introSteps[position.stepIndex] ?? null}
+          phaseIndex={position.phaseIndex}
+          companyName={session.company_name}
+          contactName={session.contact_name}
+          onAdvanceClick={advance}
+        />
+      )}
+
       {view.name === "hub" && (
         <Hub
           criticalities={criticalities}
@@ -217,21 +282,22 @@ export default function Present({
       )}
 
       {view.name === "flow" && (
-        <>
-          <SlidePlayer
-            step={currentStep}
-            phaseIndex={position.phaseIndex}
-            companyName={session.company_name}
-            contactName={session.contact_name}
-            onAdvanceClick={advance}
-          />
-          {questionOpen && (
-            <QuestionCapture
-              onSave={saveQuestion}
-              onCancel={() => setQuestionOpen(false)}
-            />
-          )}
-        </>
+        <SlidePlayer
+          step={currentStep}
+          phaseIndex={position.phaseIndex}
+          companyName={session.company_name}
+          contactName={session.contact_name}
+          onAdvanceClick={advance}
+        />
+      )}
+
+      {/* Question capture — opened with Q from a flow or the hub (keyboard handler
+          gates which views allow it); rendered here so it overlays either one. */}
+      {questionOpen && (
+        <QuestionCapture
+          onSave={saveQuestion}
+          onCancel={() => setQuestionOpen(false)}
+        />
       )}
 
       {view.name === "closing" && (

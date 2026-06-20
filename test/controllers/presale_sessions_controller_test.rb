@@ -105,6 +105,9 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert props["stepsByCriticality"].key?("1")
     assert_equal "C01-step1", props.dig("stepsByCriticality", "1", 0, "id")
     assert(props.dig("stepsByCriticality", "1", 0, "phases").first.include?("C01-step1.png"))
+    # The intro flow precedes the hub, shared across segments/profiles.
+    assert_equal "Intro-step1", props.dig("introSteps", 0, "id")
+    assert(props.dig("introSteps", 0, "phases").first.include?("intro/Intro-step1.png"))
     assert_equal [], props["capturedQuestions"]
   end
 

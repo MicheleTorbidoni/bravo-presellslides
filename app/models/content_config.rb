@@ -11,6 +11,7 @@ module ContentConfig
   CONFIG_DIR = Rails.root.join("content", "config")
   ASSETS_DIR = Rails.root.join("content", "assets")
   SHARED_DIR = "criticalities" # content/assets/criticalities/ holds the shared bitmaps
+  INTRO_DIR = "intro" # content/assets/intro/ holds the shared intro bitmaps
 
   class << self
     def segments
@@ -57,6 +58,31 @@ module ContentConfig
         text = texts[y - 1] || {}
         {
           id: "#{code}-step#{y}",
+          title: text[:title],
+          body: text[:body],
+          phases: phases
+        }
+      end
+    end
+
+    # Builds the resolved intro flow shown before the hub. Same step shape as
+    # steps_for, so the player renders it unchanged. The intro is a single shared
+    # set (content/assets/intro/Intro-step<Y>[.f<Z>].png) — not verticalized per
+    # segment and with no token variants — so resolution is a plain lookup in the
+    # intro folder. Structure (number of steps/phases) is file-driven; titles/body
+    # come from intro.json (text-per-step), empty when the file is absent.
+    def intro_steps
+      structure = structure_in_dir(INTRO_DIR, "Intro") # { step_index => [phase_or_nil, …] }
+      texts = intro_texts
+
+      structure.keys.sort.map do |y|
+        phases = structure[y].map do |phase|
+          name = "Intro-step#{y}#{phase ? ".f#{phase}" : ''}.png"
+          asset_url(INTRO_DIR, name) if asset_exists?(INTRO_DIR, name)
+        end.compact
+        text = texts[y - 1] || {}
+        {
+          id: "Intro-step#{y}",
           title: text[:title],
           body: text[:body],
           phases: phases
@@ -191,7 +217,7 @@ module ContentConfig
         return nil if phase && phase !~ /\A\d+\z/
 
         parts = rest.split("-")
-        return nil unless parts.size >= 2 && parts[0] =~ /\AC\d{2}\z/ && parts[1] =~ /\Astep\d+\z/
+        return nil unless parts.size >= 2 && parts[0] =~ /\A(?:C\d{2}|Intro)\z/ && parts[1] =~ /\Astep\d+\z/
 
         {
           code: parts[0],
@@ -225,6 +251,13 @@ module ContentConfig
       def step_texts(criticality_id)
         crit = slides.find { |c| c[:id] == criticality_id }
         crit ? Array(crit[:steps]) : []
+      end
+
+      # Per-step intro titles/bodies from intro.json; [] when the file is absent.
+      def intro_texts
+        return [] unless CONFIG_DIR.join("intro.json").file?
+
+        Array(load_config("intro")[:steps])
       end
 
       def asset_exists?(dir, filename)

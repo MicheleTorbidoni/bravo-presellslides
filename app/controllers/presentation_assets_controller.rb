@@ -26,7 +26,8 @@ class PresentationAssetsController < ApplicationController
 
   private
     def valid_dir?(dir)
-      dir == "criticalities" ||
+      dir == ContentConfig::SHARED_DIR ||
+        dir == ContentConfig::INTRO_DIR ||
         ContentConfig.segments.any? { |s| s[:id] == dir }
     end
 end
