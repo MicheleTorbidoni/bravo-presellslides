@@ -176,15 +176,12 @@ class ContentConfigTest < ActiveSupport::TestCase
     assert_equal 2, crit[:phase]
   end
 
-  test "video_url_for resolves the base url, or nil when absent" do
-    # criticality 1 has a placeholder URL in videos.json; criticality 3 is null.
-    url = ContentConfig.video_url_for(
+  test "video_url_for reads videos.json: a configured url resolves, an unknown criticality is nil" do
+    # Content-agnostic (URLs in videos.json are placeholders that will be replaced):
+    # criticality 1 is configured, so it resolves; criticality 999 does not exist.
+    assert ContentConfig.video_url_for(
       criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
-    )
-    assert(url.include?("PLACEHOLDER-C01"))
-    assert_nil ContentConfig.video_url_for(
-      criticality_id: 3, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
-    )
+    ).present?
     assert_nil ContentConfig.video_url_for(
       criticality_id: 999, segment: nil, operational_profile: nil
     )

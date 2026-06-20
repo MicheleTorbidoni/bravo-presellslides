@@ -196,8 +196,10 @@ I subset per segmento attuali: meccanica `[1,2,3,4,7,8,10]`, elettronica `[3,7,8
   - Criticità discusse (elenco)
   - Domande catturate durante la presentazione (con riferimento alla slide/criticità)
 - **Editing delle domande** dal debrief: aggiungere, modificare il testo, rimuovere (opera sullo stesso record della sessione)
-- Pulsante: **"Invia recap via email"** → apre modale con campo destinatario (pre-compilato o vuoto), corpo del recap in testo editabile prima dell'invio. Invio one-shot via **Resend**; dopo l'invio lo stato della sessione diventa "recap inviato"
-- **Future feature (out of scope per MVP):** integrazione HubSpot per salvare il recap nella scheda del prospect
+- Pulsante: **"Invia recap via email"** → apre modale con campo destinatario (inserito a mano, non persistito), corpo del recap in testo editabile prima dell'invio. Invio one-shot via **Resend** (`deliver_now`; mittente `RECAP_MAIL_FROM`, default `loredana.mosca@antos.it`; in dev `letter_opener`, in test `:test`); dopo l'invio lo stato della sessione diventa "recap inviato"
+- **Link ai video di approfondimento nel recap:** il corpo generato include, per **ogni tema dell'hub** (il subset risolto segmento×profilo, non solo i discussi) che ha un video associato, un link all'approfondimento. I link vivono in `content/config/videos.json` e si risolvono per **criticità × segmento industriale × token decisionale**, con la **stessa catena degli asset slide**: `segmento+token > token (condiviso) > default segmento > default base` (`ContentConfig.video_url_for`). Il link compare **solo** se l'URL è risolto (nessun link morto). I video reali sono **deferred** (contenuto); gli URL attuali sono placeholder.
+  - **Varianti per token** (esempio): due aziende entrambe del segmento "meccanica", sulla stessa criticità, ricevono video diversi a seconda della distinta base — `bom1` (Semplice, 1 livello) vs `bomN` (Multilivello, l'ultima decisione D5 dell'albero). Si valorizzano `videos.json → criticità → segments.meccanica.tokens.bom1` e `.bomN`. Per un video uguale in tutti i segmenti basta il livello superiore `tokens.<token>` (token condiviso); per un default di segmento `segments.<id>.url`; per un default globale `url`.
+- **Future feature (out of scope per MVP):** integrazione HubSpot per salvare il recap nella scheda del prospect; video reali (oggi placeholder) e relative verticalizzazioni per segmento/token
 
 **Archivio sessioni:**
 
@@ -220,6 +222,7 @@ I subset per segmento attuali: meccanica `[1,2,3,4,7,8,10]`, elettronica `[3,7,8
     criticalities.json        # elenco delle 13 criticità con metadati
     mappings.json             # segment × profile → criticality IDs
     slides.json               # testi (titolo/body) per step, per criticità
+    videos.json               # link video di approfondimento (recap): criticità × segmento × token
   /assets
     /criticalities            # bitmap condivise per criticità (flat)
       C01-step1.png
@@ -457,7 +460,7 @@ Sintesi di cosa è costruito (al 2026-06-18), per orientare gli sviluppi futuri.
 **Da completare / fuori da ciò che è stato costruito finora**
 - **Arte reale delle bitmap**: oggi `criticalities/` contiene **placeholder** etichettati; vanno ri-esportati con i contenuti veri (stessi nomi → sovrascrittura).
 - **Testi per-step** in `slides.json`: carry-over dai vecchi titoli dove possibile, altrimenti `null` (da autorare).
-- **Debrief / recap email / archivio avanzato** (§7 Fase 3): esiste solo l'`index` base; debrief, editing domande, invio recap via Resend **non** ancora implementati.
+- **Debrief / recap email** (§7 Fase 3): **costruiti (M6)** — schermata debrief (`PresaleSessions/Debrief.tsx`), editing domande, invio recap via Resend con passaggio a stato `recap_sent`, e **link video di approfondimento** nel recap (`videos.json` + `ContentConfig.video_url_for`, risoluzione criticità×segmento×token). **Archivio avanzato** (ricerca, dettaglio storico, ri-invio, eliminazione, §7 Fase 3): da costruire (M7) — esiste solo l'`index` base.
 - **Pulizia pagine-segmento Figma** obsolete; **mini-video** (embed remoto). Deferred. (La risoluzione dell'**override per segmento** — anche combinato col token — è implementata lato codice; restano da definire la convenzione di nome frame per il routing in fase di sync e l'arte reale.)
 
 ---
