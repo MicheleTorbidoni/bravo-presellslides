@@ -136,7 +136,10 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Generale", props.dig("capturedQuestions", 1, "criticality_label")
     # the generated body includes the deep-dive video links for hub themes with a URL
     assert_includes props["defaultRecapBody"], "Approfondimenti video:"
-    assert_includes props["defaultRecapBody"], "PLACEHOLDER-C01"
+    expected_url = ContentConfig.video_url_for(
+      criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
+    )
+    assert_includes props["defaultRecapBody"], expected_url
   end
 
   test "recap sends the email, marks the session recap_sent and redirects to the debrief" do
