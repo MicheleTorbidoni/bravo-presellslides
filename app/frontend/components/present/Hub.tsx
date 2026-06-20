@@ -68,6 +68,8 @@ export function Hub({
           <Logo variant="color" className="h-[3.4cqw] w-auto" />
           <p className="text-[0.9cqw] text-bm-slate/50">
             Tocca un tema per presentarlo · premi{" "}
+            <kbd className="rounded bg-bm-slate/15 px-1 font-mono">Q</kbd> per una
+            domanda ·{" "}
             <kbd className="rounded bg-bm-slate/15 px-1 font-mono">C</kbd> per
             chiudere
           </p>

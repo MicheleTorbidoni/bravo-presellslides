@@ -65,6 +65,7 @@ class PresaleSessionsController < ApplicationController
       session: present_session(@session),
       criticalities: relevant.presence || ContentConfig.criticalities,
       prefiltered: relevant.any?,
+      introSteps: ContentConfig.intro_steps,
       discussedCriticalities: @session.discussed_criticalities,
       stepsByCriticality: steps_by_criticality(@session),
       capturedQuestions: @session.captured_questions

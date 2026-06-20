@@ -54,6 +54,23 @@ class PresentFlowTest < ApplicationSystemTestCase
     JS
   end
 
+  # Dispatch a keydown on window directly so it reaches the global listener
+  # regardless of the focused element in headless Chrome.
+  def press_key(key)
+    page.execute_script(
+      "window.dispatchEvent(new KeyboardEvent('keydown', { key: '#{key}', bubbles: true }))"
+    )
+  end
+
+  # The intro flow plays before the hub; advance through it until the hub shows.
+  def skip_intro
+    10.times do
+      break if page.has_text?("Dove fa più difficoltà la tua azienda?", wait: 0.2)
+      press_key("ArrowRight")
+    end
+    assert_text "Dove fa più difficoltà la tua azienda?"
+  end
+
   # The capture overlay uses an uncontrolled-feeling React textarea; set the value
   # and dispatch an input event so React's onChange picks it up reliably in headless.
   def fill_in_question(text)
@@ -71,7 +88,7 @@ class PresentFlowTest < ApplicationSystemTestCase
   test "operator runs the hub loop and reaches the closing page" do
     visit present_presale_session_path(@session)
 
-    assert_text "Dove fa più difficoltà la tua azienda?"
+    skip_intro
     # The resolved subset is pre-filtered into the hub.
     assert_text "Tempi di produzione non raccolti"
     page.save_screenshot("tmp/screenshots/present-hub.png")
@@ -95,11 +112,11 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_no_text "Cattura domanda"
 
     # Step through every step/phase with the right arrow until the flow completes
-    # and we return to the hub (C01: step1 → step2 → step3.f1 → step3.f2).
-    4.times do
-      page.execute_script(
-        "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))"
-      )
+    # and we return to the hub (the step count is segment-driven, so advance until
+    # the hub reappears rather than hard-coding it).
+    10.times do
+      break if page.has_text?("Dove fa più difficoltà la tua azienda?", wait: 0.2)
+      press_key("ArrowRight")
     end
     assert_text "Dove fa più difficoltà la tua azienda?"
 
@@ -129,7 +146,7 @@ class PresentFlowTest < ApplicationSystemTestCase
 
   test "navigating steps and phases forward and back shows the right image" do
     visit present_presale_session_path(@session)
-    assert_text "Dove fa più difficoltà la tua azienda?"
+    skip_intro
     react_click "Tempi di produzione non raccolti"
 
     # C01: step1 -> step2 -> step3.f1 -> step3.f2 (the image src tracks position,
@@ -158,12 +175,29 @@ class PresentFlowTest < ApplicationSystemTestCase
 
   test "the S shortcut leaves the presentation for the sessions list" do
     visit present_presale_session_path(@session)
-    assert_text "Dove fa più difficoltà la tua azienda?"
+    skip_intro
 
-    page.execute_script(
-      "window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', bubbles: true }))"
-    )
+    press_key("s")
 
     assert_current_path presale_sessions_path
+  end
+
+  test "captures a question from the hub, unbound to any criticality" do
+    visit present_presale_session_path(@session)
+    skip_intro
+
+    # Q opens the capture overlay from the hub too (not just inside a flow).
+    press_key("q")
+    assert_text "Cattura domanda"
+    fill_in_question("Possiamo avere una demo dedicata?")
+    react_click "Salva domanda"
+    assert_no_text "Cattura domanda"
+
+    # It persisted with no criticality/slide context (captured outside a flow).
+    questions = @session.reload.captured_questions
+    assert_equal 1, questions.length
+    assert_equal "Possiamo avere una demo dedicata?", questions.first["text"]
+    assert_nil questions.first["criticality_id"]
+    assert_nil questions.first["slide_id"]
   end
 end

@@ -154,6 +154,27 @@ class ContentConfigTest < ActiveSupport::TestCase
     assert(step2.call(with).end_with?("C01-step2-bomN.png"))
   end
 
+  test "intro_steps resolves the shared intro flow with texts from intro.json" do
+    steps = ContentConfig.intro_steps
+
+    assert_equal %w[ Intro-step1 Intro-step2 Intro-step3 ], steps.map { |s| s[:id] }
+    assert(steps.first[:phases].first.end_with?("/presentation_assets/intro/Intro-step1.png"))
+    # titles/body come from intro.json (text-per-step)
+    assert_equal "Benvenuto.", steps.first[:title]
+  end
+
+  test "parse_asset_name accepts the Intro code without breaking criticalities" do
+    intro = ContentConfig.send(:parse_asset_name, "Intro-step2.png")
+    assert_equal "Intro", intro[:code]
+    assert_equal 2, intro[:step]
+    assert_nil intro[:token]
+
+    crit = ContentConfig.send(:parse_asset_name, "C01-step3.f2.png")
+    assert_equal "C01", crit[:code]
+    assert_equal 3, crit[:step]
+    assert_equal 2, crit[:phase]
+  end
+
   test "steps_for returns [] for a criticality with no bitmaps" do
     assert_equal [], ContentConfig.steps_for(
       criticality_id: 90, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
