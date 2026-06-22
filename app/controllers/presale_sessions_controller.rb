@@ -155,7 +155,12 @@ class PresaleSessionsController < ApplicationController
       session_summary(session).merge(
         contact_name: session.contact_name,
         segment: session.segment,
-        operational_profile: session.operational_profile
+        operational_profile: session.operational_profile,
+        # Rome wall-clock string for the datetime-local input (stable regardless of
+        # the operator's browser timezone); echoed back as-is and parsed in Rome.
+        appointment_at_local: session.appointment_at&.in_time_zone("Europe/Rome")&.strftime("%Y-%m-%dT%H:%M"),
+        appointment_sales_name: session.appointment_sales_name,
+        appointment_location: session.appointment_location
       )
     end
 
@@ -233,6 +238,9 @@ class PresaleSessionsController < ApplicationController
         :segment,
         :operational_profile,
         :status,
+        :appointment_at,
+        :appointment_sales_name,
+        :appointment_location,
         discussed_criticalities: [],
         captured_questions: [ :id, :text, :criticality_id, :slide_id, :asked_at ]
       )

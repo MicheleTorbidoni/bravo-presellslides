@@ -25,6 +25,9 @@ type SessionDetail = {
   segment: string | null
   operational_profile: string | null
   status: SessionStatus
+  appointment_at_local: string | null
+  appointment_sales_name: string | null
+  appointment_location: string | null
 }
 
 type ProfileStep = { question: string; answer: string }
@@ -114,6 +117,30 @@ export default function PresaleSessionDebrief({
       },
     ])
   }
+
+  // Optional follow-up appointment with a salesperson. Auto-saved (debounced) like
+  // the questions. The datetime value is a Rome wall-clock string the backend
+  // parses in Europe/Rome; an empty value clears the appointment.
+  const [appointment, setAppointment] = useState({
+    at: session.appointment_at_local ?? "",
+    salesName: session.appointment_sales_name ?? "",
+    location: session.appointment_location ?? "",
+  })
+  const firstAppointmentRender = useRef(true)
+  useEffect(() => {
+    if (firstAppointmentRender.current) {
+      firstAppointmentRender.current = false
+      return
+    }
+    const timer = setTimeout(() => {
+      void apiPatch(`/presale_sessions/${session.id}`, {
+        appointment_at: appointment.at,
+        appointment_sales_name: appointment.salesName,
+        appointment_location: appointment.location,
+      })
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [appointment, session.id])
 
   // Send-recap modal: data bound via useForm, validation errors surfaced from the
   // shared errors prop (the controller redirects with inertia: { errors }).
@@ -207,6 +234,51 @@ export default function PresaleSessionDebrief({
               Nessuna criticità marcata come discussa.
             </p>
           )}
+        </div>
+
+        <div className="mt-8 max-w-2xl">
+          <h2 className="text-base font-semibold text-ink-display">
+            Appuntamento col commerciale
+          </h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Opzionale. Se impostato, compare nel recap (email + pagina) con
+            l'aggiunta al calendario.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="appointment_at">Data e ora</label>
+              <Input
+                id="appointment_at"
+                type="datetime-local"
+                value={appointment.at}
+                onChange={(e) =>
+                  setAppointment((a) => ({ ...a, at: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="appointment_sales_name">Commerciale</label>
+              <Input
+                id="appointment_sales_name"
+                placeholder="Nome del commerciale"
+                value={appointment.salesName}
+                onChange={(e) =>
+                  setAppointment((a) => ({ ...a, salesName: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <label htmlFor="appointment_location">Luogo o link</label>
+              <Input
+                id="appointment_location"
+                placeholder="Es. videocall Zoom/Meet o indirizzo"
+                value={appointment.location}
+                onChange={(e) =>
+                  setAppointment((a) => ({ ...a, location: e.target.value }))
+                }
+              />
+            </div>
+          </div>
         </div>
 
         <div className="mt-8 max-w-2xl">

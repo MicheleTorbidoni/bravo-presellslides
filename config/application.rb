@@ -21,7 +21,9 @@ module BuildNew
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    # config.time_zone = "Central Time (US & Canada)"
+    # Italian-only app: interpret naive datetime-local input (e.g. the follow-up
+    # appointment) and format times in Rome wall-clock. Storage stays UTC.
+    config.time_zone = "Europe/Rome"
     # config.eager_load_paths << Rails.root.join("extras")
   end
 end

@@ -34,4 +34,44 @@ class PublicRecapsControllerTest < ActionDispatch::IntegrationTest
     get public_recap_path(token: "does-not-exist")
     assert_response :not_found
   end
+
+  test "exposes the appointment payload when set, nil otherwise" do
+    session = users(:one).presale_sessions.create!(company_name: "Acme")
+    session.ensure_public_token!
+
+    get public_recap_path(token: session.public_token)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_nil props["appointment"]
+
+    session.update!(
+      appointment_at: Time.zone.parse("2026-07-01 15:00"),
+      appointment_sales_name: "Giulia Bianchi",
+      appointment_location: "Meet"
+    )
+    get public_recap_path(token: session.public_token)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal "01/07/2026 alle 15:00", props.dig("appointment", "display")
+    assert_equal "Giulia Bianchi", props.dig("appointment", "sales_name")
+    assert_includes props.dig("appointment", "ics_url"), "/r/#{session.public_token}/calendar.ics"
+    assert_includes props.dig("appointment", "google_url"), "calendar.google.com"
+  end
+
+  test "calendar serves a downloadable .ics without authentication" do
+    session = users(:one).presale_sessions.create!(company_name: "Acme")
+    session.ensure_public_token!
+    session.update!(appointment_at: Time.zone.parse("2026-07-01 15:00"))
+
+    get public_recap_calendar_path(token: session.public_token)
+    assert_response :success
+    assert_equal "text/calendar", response.media_type
+    assert_includes response.body, "BEGIN:VEVENT"
+  end
+
+  test "calendar returns not found when there is no appointment" do
+    session = users(:one).presale_sessions.create!(company_name: "Acme")
+    session.ensure_public_token!
+
+    get public_recap_calendar_path(token: session.public_token)
+    assert_response :not_found
+  end
 end

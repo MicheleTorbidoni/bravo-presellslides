@@ -1,6 +1,7 @@
 import { Head } from "@inertiajs/react"
-import { ExternalLink } from "lucide-react"
+import { CalendarPlus, ExternalLink } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 type RecapCriticality = {
   id: number
@@ -9,16 +10,26 @@ type RecapCriticality = {
   video_url: string | null
 }
 
+type Appointment = {
+  display: string
+  sales_name: string | null
+  location: string | null
+  ics_url: string
+  google_url: string
+}
+
 export default function PublicRecap({
   session,
   topics,
   questions,
   criticalities,
+  appointment,
 }: {
   session: { company_name: string | null; contact_name: string | null }
   topics: string[]
   questions: string[]
   criticalities: RecapCriticality[]
+  appointment: Appointment | null
 }) {
   const company = session.company_name || "la vostra azienda"
   // M8: i video sono link semplici per le criticità effettivamente discusse che
@@ -110,6 +121,47 @@ export default function PublicRecap({
               </p>
             )}
           </section>
+
+          {appointment && (
+            <section className="mt-8">
+              <h2 className="text-base font-semibold text-ink-display">
+                Appuntamento col commerciale
+              </h2>
+              <div className="mt-3 rounded-md border border-hairline bg-surface px-4 py-4">
+                <p className="text-sm">
+                  <strong>{appointment.display}</strong>
+                </p>
+                {appointment.sales_name && (
+                  <p className="mt-1 text-sm text-ink-muted">
+                    Commerciale: {appointment.sales_name}
+                  </p>
+                )}
+                {appointment.location && (
+                  <p className="mt-1 text-sm text-ink-muted">
+                    Luogo: {appointment.location}
+                  </p>
+                )}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild variant="secondary" size="sm">
+                    <a href={appointment.ics_url}>
+                      <CalendarPlus className="h-4 w-4" />
+                      Aggiungi al calendario
+                    </a>
+                  </Button>
+                  <Button asChild variant="secondary" size="sm">
+                    <a
+                      href={appointment.google_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                      Google Calendar
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </section>
+          )}
 
           <footer className="mt-12 border-t border-hairline pt-6 text-sm text-ink-muted">
             A presto, il team Bravo Manufacturing.

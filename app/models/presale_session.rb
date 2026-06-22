@@ -23,4 +23,9 @@ class PresaleSession < ApplicationRecord
     update!(public_token: SecureRandom.urlsafe_base64(24))
     public_token
   end
+
+  # Whether an optional follow-up appointment with a salesperson has been set.
+  def appointment?
+    appointment_at.present?
+  end
 end
