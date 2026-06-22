@@ -28,6 +28,9 @@ class PublicRecapsControllerTest < ActionDispatch::IntegrationTest
       criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
     )
     assert_equal expected_url, discussed["video_url"]
+    # M9: each criticality also carries an embeddable URL derived from video_url.
+    assert_equal VideoEmbed.url(expected_url), discussed["embed_url"]
+    assert_includes discussed["embed_url"], "youtube-nocookie.com/embed/"
   end
 
   test "returns not found for an unknown token" do

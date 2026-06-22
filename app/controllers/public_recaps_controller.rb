@@ -64,15 +64,17 @@ class PublicRecapsController < ApplicationController
       discussed = session.discussed_criticalities
 
       relevant.map do |c|
+        video_url = ContentConfig.video_url_for(
+          criticality_id: c[:id],
+          segment: session.segment,
+          operational_profile: session.operational_profile
+        )
         {
           id: c[:id],
           label: c[:label],
           discussed: discussed.include?(c[:id]),
-          video_url: ContentConfig.video_url_for(
-            criticality_id: c[:id],
-            segment: session.segment,
-            operational_profile: session.operational_profile
-          )
+          video_url: video_url,
+          embed_url: VideoEmbed.url(video_url)
         }
       end
     end
