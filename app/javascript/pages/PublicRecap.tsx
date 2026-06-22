@@ -8,6 +8,7 @@ type RecapCriticality = {
   label: string
   discussed: boolean
   video_url: string | null
+  embed_url: string | null
 }
 
 type Appointment = {
@@ -32,9 +33,12 @@ export default function PublicRecap({
   appointment: Appointment | null
 }) {
   const company = session.company_name || "la vostra azienda"
-  // M8: i video sono link semplici per le criticità effettivamente discusse che
-  // hanno un URL risolto. Embedding + esplorazione del resto del subset → M9.
-  const videoItems = criticalities.filter((c) => c.discussed && c.video_url)
+  // M9: player embeddati inline. Le criticità discusse (con video) in evidenza,
+  // il resto del subset come approfondimenti correlati. Un video va mostrato se
+  // ha un embed riproducibile o, in fallback, un link esterno.
+  const hasVideo = (c: RecapCriticality) => !!(c.embed_url || c.video_url)
+  const discussedVideos = criticalities.filter((c) => c.discussed && hasVideo(c))
+  const otherVideos = criticalities.filter((c) => !c.discussed && hasVideo(c))
 
   return (
     <>
@@ -97,30 +101,34 @@ export default function PublicRecap({
             <h2 className="text-base font-semibold text-ink-display">
               Approfondimenti video
             </h2>
-            {videoItems.length > 0 ? (
-              <ul className="mt-3 divide-y divide-hairline overflow-hidden rounded-md border border-hairline">
-                {videoItems.map((c) => (
-                  <li key={c.id}>
-                    <a
-                      href={c.video_url as string}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between gap-3 px-4 py-3 no-underline hover:bg-surface"
-                    >
-                      <span className="text-sm font-medium text-ink-display">
-                        {c.label}
-                      </span>
-                      <ExternalLink className="h-4 w-4 shrink-0 text-ink-muted" />
-                    </a>
-                  </li>
+            {discussedVideos.length > 0 ? (
+              <div className="mt-3 flex flex-col gap-6">
+                {discussedVideos.map((c) => (
+                  <VideoCard key={c.id} criticality={c} />
                 ))}
-              </ul>
+              </div>
             ) : (
               <p className="mt-2 text-ink-muted">
                 Nessun video di approfondimento disponibile.
               </p>
             )}
           </section>
+
+          {otherVideos.length > 0 && (
+            <section className="mt-8">
+              <h2 className="text-base font-semibold text-ink-display">
+                Altri approfondimenti
+              </h2>
+              <p className="mt-1 text-sm text-ink-muted">
+                Temi vicini al tuo contesto che potrebbero interessarti.
+              </p>
+              <div className="mt-3 flex flex-col gap-6">
+                {otherVideos.map((c) => (
+                  <VideoCard key={c.id} criticality={c} />
+                ))}
+              </div>
+            </section>
+          )}
 
           {appointment && (
             <section className="mt-8">
@@ -169,5 +177,37 @@ export default function PublicRecap({
         </div>
       </div>
     </>
+  )
+}
+
+function VideoCard({ criticality }: { criticality: RecapCriticality }) {
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-medium text-ink-display">
+        {criticality.label}
+      </h3>
+      {criticality.embed_url ? (
+        <div className="aspect-video w-full overflow-hidden rounded-md border border-hairline bg-surface">
+          <iframe
+            src={criticality.embed_url}
+            title={criticality.label}
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="h-full w-full"
+          />
+        </div>
+      ) : (
+        <a
+          href={criticality.video_url as string}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between gap-3 rounded-md border border-hairline px-4 py-3 no-underline hover:bg-surface"
+        >
+          <span className="text-sm text-ink-body">Guarda il video</span>
+          <ExternalLink className="h-4 w-4 shrink-0 text-ink-muted" />
+        </a>
+      )}
+    </div>
   )
 }
