@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react"
 import { Head, router, useForm, usePage } from "@inertiajs/react"
-import { Plus, Send, Trash2 } from "lucide-react"
+import { Check, Copy, Plus, Send, Trash2 } from "lucide-react"
 import { AppShell } from "@/components/AppShell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -59,6 +59,7 @@ export default function PresaleSessionDebrief({
   discussedCriticalities,
   capturedQuestions,
   defaultRecapBody,
+  publicRecapUrl,
 }: {
   session: SessionDetail
   segmentLabel: string | null
@@ -66,6 +67,7 @@ export default function PresaleSessionDebrief({
   discussedCriticalities: string[]
   capturedQuestions: Question[]
   defaultRecapBody: string
+  publicRecapUrl: string | null
 }) {
   const { props } = usePage<PageProps>()
   const errors = props.errors ?? {}
@@ -117,6 +119,16 @@ export default function PresaleSessionDebrief({
   // shared errors prop (the controller redirects with inertia: { errors }).
   const [modalOpen, setModalOpen] = useState(false)
   const form = useForm({ recipient: "", body: defaultRecapBody })
+
+  // Copy-to-clipboard for the prospect's public recap link (same pattern as the
+  // design-system CodeBlock). The link exists only once the recap has been sent.
+  const [copied, setCopied] = useState(false)
+  function copyLink() {
+    if (!publicRecapUrl) return
+    void navigator.clipboard.writeText(publicRecapUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   function sendRecap(e: FormEvent) {
     e.preventDefault()
@@ -233,6 +245,33 @@ export default function PresaleSessionDebrief({
           ) : (
             <p className="mt-2 text-ink-muted">
               Nessuna domanda catturata durante la call.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-8 max-w-2xl">
+          <h2 className="text-base font-semibold text-ink-display">
+            Link per il prospect
+          </h2>
+          {publicRecapUrl ? (
+            <div className="mt-3 flex items-center gap-2">
+              <Input value={publicRecapUrl} readOnly aria-label="Link pubblico" />
+              <Button
+                variant="secondary"
+                size="icon"
+                aria-label="Copia link"
+                onClick={copyLink}
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-accent" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          ) : (
+            <p className="mt-2 text-ink-muted">
+              Il link sarà disponibile dopo l'invio del recap.
             </p>
           )}
         </div>

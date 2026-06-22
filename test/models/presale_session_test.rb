@@ -48,6 +48,18 @@ class PresaleSessionTest < ActiveSupport::TestCase
     assert session.closed?
   end
 
+  test "ensure_public_token! mints a token once and is idempotent" do
+    session = @user.presale_sessions.create!
+
+    assert_nil session.public_token
+    token = session.ensure_public_token!
+    assert token.present?
+    assert_equal token, session.reload.public_token
+
+    assert_equal token, session.ensure_public_token!, "token must stay stable"
+    assert_equal token, session.reload.public_token
+  end
+
   test "is removed when its user is destroyed" do
     @user.presale_sessions.create!
 

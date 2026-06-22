@@ -22,6 +22,10 @@ Rails.application.routes.draw do
     end
   end
 
+  # Public, token-gated recap page sent to the prospect after the call. No login:
+  # the unguessable token in the path is the only credential (see PublicRecapsController).
+  get "/r/:token", to: "public_recaps#show", as: :public_recap
+
   # Serves the prospect-facing slide bitmaps at runtime from content/assets/
   # (which is outside the web root). The slide player receives already-resolved
   # URLs whose :dir is either "criticalities" (shared) or a segment id (override)

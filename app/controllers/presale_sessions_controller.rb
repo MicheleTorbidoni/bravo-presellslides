@@ -76,14 +76,16 @@ class PresaleSessionsController < ApplicationController
   # + captured questions to edit, and a pre-composed recap body to send. Questions
   # are edited via the auto-save endpoint (update); sending happens via #recap.
   def debrief
-    relevant = relevant_criticalities(@session)
     render inertia: "PresaleSessions/Debrief", props: {
       session: session_detail(@session),
       segmentLabel: ContentConfig.segments.find { |s| s[:id] == @session.segment }&.dig(:label),
       profileSteps: ContentConfig.decode_profile(@session.operational_profile),
       discussedCriticalities: discussed_criticality_labels(@session),
       capturedQuestions: enriched_questions(@session),
-      defaultRecapBody: default_recap_body(@session, relevant)
+      defaultRecapBody: default_recap_body(@session),
+      # Link to the prospect's public recap page — present once the recap has been
+      # sent at least once (that's when the token is minted). The operator copies it.
+      publicRecapUrl: @session.public_token && public_recap_url(token: @session.public_token)
     }
   end
 
@@ -100,8 +102,13 @@ class PresaleSessionsController < ApplicationController
       return redirect_to debrief_presale_session_path(@session), inertia: { errors: errors }
     end
 
+    # The prospect's recap now lives on a public, token-gated page; the email is a
+    # short cover that links to it. Mint the token on first send and keep it stable.
+    @session.ensure_public_token!
+    url = public_recap_url(token: @session.public_token)
+
     begin
-      PresaleRecapMailer.recap(@session, to: recipient, body: body).deliver_now
+      PresaleRecapMailer.recap(@session, to: recipient, body: body, url: url).deliver_now
     rescue StandardError => e
       Rails.logger.error("Recap delivery failed: #{e.class}: #{e.message}")
       return redirect_to debrief_presale_session_path(@session),
@@ -182,16 +189,6 @@ class PresaleSessionsController < ApplicationController
       end
     end
 
-    # The criticalities shown in this session's hub: the resolved subset, or the
-    # full list of 13 as the predictable fallback (same rule as #present).
-    def relevant_criticalities(session)
-      relevant = ContentConfig.criticalities_for(
-        segment: session.segment,
-        operational_profile: session.operational_profile
-      )
-      relevant.presence || ContentConfig.criticalities
-    end
-
     # Labels of the criticalities actually discussed, in the order they were marked.
     def discussed_criticality_labels(session)
       by_id = ContentConfig.criticalities.index_by { |c| c[:id] }
@@ -208,45 +205,19 @@ class PresaleSessionsController < ApplicationController
       end
     end
 
-    # Pre-composes the editable recap text: a greeting, the operative context, the
-    # discussed criticalities, the captured questions, and the deep-dive video links
-    # for every hub theme that has a resolved URL (placeholder content for now).
-    def default_recap_body(session, relevant)
+    # Pre-composes the editable email body. The recap content (themes, questions,
+    # deep-dive videos) now lives on the prospect's public page, so the email is a
+    # short cover: greeting + context + sign-off. The mailer template appends the
+    # button that links to the page; the operator can still tweak this text.
+    def default_recap_body(session)
       contact = session.contact_name.presence
       company = session.company_name.presence || "la vostra azienda"
       lines = []
       lines << "Ciao#{contact ? " #{contact}" : ''},"
       lines << ""
-      lines << "grazie per il tempo dedicato. Di seguito un riepilogo di quanto visto insieme per #{company}."
-
-      discussed = discussed_criticality_labels(session)
-      if discussed.any?
-        lines << ""
-        lines << "Temi affrontati:"
-        discussed.each { |label| lines << "- #{label}" }
-      end
-
-      questions = session.captured_questions
-      if questions.any?
-        lines << ""
-        lines << "Domande emerse:"
-        questions.each { |q| lines << "- #{q['text']}" }
-      end
-
-      video_lines = relevant.filter_map do |c|
-        url = ContentConfig.video_url_for(
-          criticality_id: c[:id],
-          segment: session.segment,
-          operational_profile: session.operational_profile
-        )
-        "- #{c[:label]}: #{url}" if url
-      end
-      if video_lines.any?
-        lines << ""
-        lines << "Approfondimenti video:"
-        lines.concat(video_lines)
-      end
-
+      lines << "grazie per il tempo dedicato. Ho preparato una pagina con il riepilogo di quanto visto insieme per #{company} e i video di approfondimento del vostro caso."
+      lines << ""
+      lines << "Trovi tutto qui sotto."
       lines << ""
       lines << "A presto,"
       lines << "il team Bravo Manufacturing"
