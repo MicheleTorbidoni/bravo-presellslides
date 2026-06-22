@@ -216,3 +216,7 @@ Source files are declared explicitly via an `@source` directive in `application.
 The `_build_plan/` folder contains the initial PRD and per-milestone prompts used to scaffold this codebase during its initial build-out phase. These files are **temporary** — they exist for documentation and guidance only. They are **not** functional: no code, configuration, or runtime logic in this codebase should import, reference, or depend on anything inside `_build_plan/`.
 
 Do not treat `_build_plan/` as long-living documentation for the codebase. The codebase will evolve past the assumptions and decisions captured here. Once the initial milestones are complete, this folder is expected to be deleted.
+
+## `docs/roadmap/`
+
+The `docs/roadmap/` folder holds PRDs and per-milestone prompts for **incremental phases** built on top of the initial 7 milestones (e.g. `docs/roadmap/fase-2-pagina-prospect/`). Same nature as `_build_plan/`: documentation and guidance only — **not** functional, and nothing in the codebase should import or depend on it. Unlike `_build_plan/` it is meant to outlive the initial build-out as a record of how the product evolved, but the source of truth is always the code. Milestone numbering continues from the initial build (M8, M9, …) for a single continuous changelog.
