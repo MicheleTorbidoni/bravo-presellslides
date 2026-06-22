@@ -5,7 +5,7 @@ class PresaleSessionsController < ApplicationController
   # show up as an "Unpermitted parameters" warning on every save.
   wrap_parameters format: []
 
-  before_action :set_session, only: %i[ setup profiling result present update debrief recap ]
+  before_action :set_session, only: %i[ setup profiling result present update debrief recap destroy ]
 
   # Sessions area. Lists the current user's pre-sale sessions; the full archive
   # (search, delete) arrives in a later milestone.
@@ -120,6 +120,13 @@ class PresaleSessionsController < ApplicationController
     head :ok
   end
 
+  # Archive cleanup: hard-deletes a session. set_session already scopes to the
+  # current user, so a session belonging to someone else raises RecordNotFound.
+  def destroy
+    @session.destroy!
+    redirect_to presale_sessions_path, notice: "Sessione eliminata."
+  end
+
   private
     def set_session
       @session = Current.user.presale_sessions.find(params[:id])
@@ -129,6 +136,8 @@ class PresaleSessionsController < ApplicationController
       {
         id: session.id,
         company_name: session.company_name,
+        contact_name: session.contact_name,
+        segment_label: ContentConfig.segments.find { |s| s[:id] == session.segment }&.dig(:label),
         status: session.status,
         profiled: session.operational_profile.present?,
         created_at: session.created_at.iso8601

@@ -276,4 +276,41 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
     assert_nil other_session.reload.company_name
   end
+
+  test "index hands over the contact name and resolved segment label" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(contact_name: "Mario Rossi", segment: "meccanica")
+
+    get presale_sessions_path
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    row = props["sessions"].find { |s| s["id"] == session.id }
+    assert_equal "Mario Rossi", row["contact_name"]
+    expected_label = ContentConfig.segments.find { |s| s[:id] == "meccanica" }[:label]
+    assert_equal expected_label, row["segment_label"]
+  end
+
+  test "destroy deletes the session and redirects to the archive" do
+    sign_in
+    session = presale_sessions(:one)
+
+    assert_difference -> { @user.presale_sessions.count }, -1 do
+      delete presale_session_path(session)
+    end
+
+    assert_redirected_to presale_sessions_path
+  end
+
+  test "a user cannot delete another user's session" do
+    sign_in
+    other_session = users(:two).presale_sessions.create!
+
+    assert_no_difference -> { PresaleSession.count } do
+      delete presale_session_path(other_session)
+    end
+
+    assert_response :not_found
+  end
 end
