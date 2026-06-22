@@ -1,11 +1,12 @@
-# Sends the prospect the recap of a pre-sale call. The body is the exact text the
-# operator reviewed/edited in the debrief screen (passed in), so the email mirrors
-# what they saw — the mailer does not regenerate it. The sender is configurable via
-# the RECAP_MAIL_FROM env var (default loredana.mosca@antos.it).
+# Sends the prospect a short cover email that links to their public recap page.
+# The body is the exact cover text the operator reviewed/edited in the debrief
+# screen (passed in); the template appends a button to `url` (the token-gated page).
+# The sender is configurable via the RECAP_MAIL_FROM env var (default loredana.mosca@antos.it).
 class PresaleRecapMailer < ApplicationMailer
-  def recap(session, to:, body:)
+  def recap(session, to:, body:, url:)
     @session = session
     @body = body
+    @url = url
     company = session.company_name.presence || "il prospect"
 
     mail(

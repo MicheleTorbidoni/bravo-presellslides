@@ -16,6 +16,8 @@ Disallow: /settings
 Disallow: /profile
 Disallow: /letter_opener
 Disallow: /up
+# Token-gated prospect recap pages — private despite being public; also noindex'd.
+Disallow: /r/
 
 # Point crawlers at the sitemap so they can discover every public page.
 # Replace the host below to match the deployed domain (or generate via

@@ -134,12 +134,12 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     # captured questions are enriched with the criticality label ("Generale" if none)
     assert_equal "Tempi di produzione non raccolti", props.dig("capturedQuestions", 0, "criticality_label")
     assert_equal "Generale", props.dig("capturedQuestions", 1, "criticality_label")
-    # the generated body includes the deep-dive video links for hub themes with a URL
-    assert_includes props["defaultRecapBody"], "Approfondimenti video:"
-    expected_url = ContentConfig.video_url_for(
-      criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
-    )
-    assert_includes props["defaultRecapBody"], expected_url
+    # The email body is now a short cover (greeting + context); the recap content
+    # — themes, questions, video links — lives on the public page, not the email.
+    assert_includes props["defaultRecapBody"], "Acme Spa"
+    refute_includes props["defaultRecapBody"], "Approfondimenti video:"
+    # No recap sent yet for this session, so there is no public link to show.
+    assert_nil props["publicRecapUrl"]
   end
 
   test "recap sends the email, marks the session recap_sent and redirects to the debrief" do
@@ -154,9 +154,29 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to debrief_presale_session_path(session)
     assert_equal "recap_sent", session.reload.status
+    # Sending mints the public token, and the email links to that public page.
+    assert session.public_token.present?
     mail = ActionMailer::Base.deliveries.last
     assert_equal [ "prospect@acme.it" ], mail.to
     assert_equal [ "loredana.mosca@antos.it" ], mail.from
+    assert_match "/r/#{session.public_token}", mail.text_part.body.to_s
+  end
+
+  test "recap reuses the existing public token on re-send and exposes the link in the debrief" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(company_name: "Acme", status: "closed")
+
+    post recap_presale_session_path(session), params: { recipient: "a@acme.it", body: "x" }
+    first_token = session.reload.public_token
+    assert first_token.present?
+
+    post recap_presale_session_path(session), params: { recipient: "b@acme.it", body: "y" }
+    assert_equal first_token, session.reload.public_token, "token must stay stable on re-send"
+
+    get debrief_presale_session_path(session)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_includes props["publicRecapUrl"].to_s, "/r/#{first_token}"
   end
 
   test "recap with an invalid recipient does not send and keeps the status" do

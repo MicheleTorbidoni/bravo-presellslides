@@ -9,18 +9,19 @@ class PresaleRecapMailerPreview < ActionMailer::Preview
     body = <<~TEXT
       Ciao Mario,
 
-      grazie per il tempo dedicato. Di seguito un riepilogo di quanto visto insieme per Acme Spa.
+      grazie per il tempo dedicato. Ho preparato una pagina con il riepilogo di quanto visto insieme per Acme Spa e i video di approfondimento del vostro caso.
 
-      Temi affrontati:
-      - Tempi di produzione non raccolti
-
-      Approfondimenti video:
-      - Tempi di produzione non raccolti: https://www.youtube.com/watch?v=PLACEHOLDER-C01
+      Trovi tutto qui sotto.
 
       A presto,
       il team Bravo Manufacturing
     TEXT
 
-    PresaleRecapMailer.recap(session, to: "prospect@example.com", body: body)
+    PresaleRecapMailer.recap(
+      session,
+      to: "prospect@example.com",
+      body: body,
+      url: "http://localhost:3000/r/preview-token-123"
+    )
   end
 end
