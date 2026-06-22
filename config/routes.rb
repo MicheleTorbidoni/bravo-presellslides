@@ -11,7 +11,7 @@ Rails.application.routes.draw do
   get "dashboard", to: "dashboard#show", as: :dashboard
   get "settings",  to: "settings#show",  as: :settings
 
-  resources :presale_sessions, only: %i[ index create update ] do
+  resources :presale_sessions, only: %i[ index create update destroy ] do
     member do
       get :setup
       get :profiling
