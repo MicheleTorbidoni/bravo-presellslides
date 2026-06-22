@@ -9,6 +9,18 @@ class PresaleRecapMailer < ApplicationMailer
     @url = url
     company = session.company_name.presence || "il prospect"
 
+    # Optional follow-up appointment: surfaced in the body and attached as an .ics
+    # so the prospect can add it to their calendar straight from the email.
+    if session.appointment?
+      @appointment_display = session.appointment_at.in_time_zone("Europe/Rome").strftime("%d/%m/%Y alle %H:%M")
+      @appointment_sales_name = session.appointment_sales_name
+      @appointment_location = session.appointment_location
+      attachments["appuntamento.ics"] = {
+        mime_type: "text/calendar",
+        content: AppointmentCalendar.ics(session)
+      }
+    end
+
     mail(
       to: to,
       from: recap_from,

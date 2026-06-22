@@ -1,4 +1,12 @@
 <%= @body %>
+<% if @appointment_display.present? %>
+
+Appuntamento con il commerciale:
+<%= @appointment_display %>
+<% if @appointment_sales_name.present? %>Commerciale: <%= @appointment_sales_name %>
+<% end %><% if @appointment_location.present? %>Luogo: <%= @appointment_location %>
+<% end %>(invito allegato: appuntamento.ics)
+<% end %>
 <% if @url.present? %>
 
 Apri il tuo riepilogo:

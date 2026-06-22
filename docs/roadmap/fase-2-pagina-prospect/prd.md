@@ -59,6 +59,7 @@ La Fase 2 non introduce nuove entità. Aggiunge un campo alla sessione esistente
 **Sessione di pre-sale (`PresaleSession`, esistente)** — il record della call.
 - *(campi esistenti: azienda, contatto, segmento, profilo operativo, criticità discusse, domande catturate, stato, date — invariati)*
 - **token pubblico** — una stringa univoca e non indovinabile che identifica la pagina pubblica del prospect. Viene generata quando il recap viene inviato per la prima volta e resta stabile (non scade, non viene rigenerata in v1). È ciò che rende il link impossibile da indovinare pur essendo la pagina pubblica.
+- **appuntamento (opzionale)** — data/ora dell'appuntamento di follow-up col commerciale, più nome del commerciale e luogo/link videocall. Se non impostato, email e pagina non mostrano alcun promemoria.
 
 I contenuti video restano nei **file di configurazione** (`videos.json`), arricchiti con più varianti per criticità (per segmento e per token decisionale). Non sono dati di database.
 
@@ -111,3 +112,26 @@ Completa l'esperienza: i video diventano riproducibili direttamente in pagina e 
 ### Fatto quando
 
 Aprendo la pagina del prospect, le criticità discusse appaiono in evidenza con il **video corretto per il suo contesto** riprodotto direttamente in pagina, e le altre criticità del subset sono esplorabili con i rispettivi video; cambiando segmento/profilo della sessione, la pagina mostra le varianti video corrispondenti.
+
+---
+
+## Milestone 10 — Appuntamento col commerciale
+
+Aggiunge un appuntamento di follow-up **opzionale** col commerciale, definito a fine call e portato fino al prospect. Indipendente da M9 (può essere rilasciata in qualsiasi ordine).
+
+### Cosa viene costruito
+
+- Nel **debrief**, l'operatore può impostare un appuntamento: **data/ora**, **nome del commerciale**, **luogo o link** videocall. Auto-salvato come il resto del debrief.
+- Se impostato, l'appuntamento compare come **promemoria** sia nell'**email di recap** sia nella **pagina pubblica** del prospect (data/ora + commerciale + luogo).
+- Il prospect può **aggiungere l'evento al calendario**: un file **`.ics`** scaricabile (universale) e un bottone **"Aggiungi a Google Calendar"** in pagina; l'email allega direttamente l'`.ics`.
+- È **opzionale**: senza appuntamento, email e pagina non mostrano nulla e il recap resta inviabile.
+
+### Cosa il milestone 10 NON include
+
+- Inviti calendario "veri" con RSVP/conferma di presenza, promemoria automatici, ricorrenze.
+- Scelta della durata dell'evento (fissa a 30 minuti) o del fuso orario (Europe/Rome).
+- Sincronizzazione con calendari del commerciale o integrazioni di scheduling (Calendly, ecc.).
+
+### Fatto quando
+
+Dal debrief si imposta data/ora + commerciale + luogo; inviando il recap, l'email mostra il promemoria e allega l'`.ics`, e la pagina pubblica mostra il promemoria con i bottoni "Aggiungi al calendario" e "Google Calendar" funzionanti. Senza appuntamento, email e pagina non mostrano il promemoria e il recap parte comunque.

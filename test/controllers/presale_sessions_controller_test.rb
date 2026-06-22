@@ -287,6 +287,28 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ 4 ], session.discussed_criticalities
   end
 
+  test "appointment fields persist via auto-save and round-trip in Rome time" do
+    sign_in
+    session = presale_sessions(:one)
+
+    patch presale_session_path(session), params: {
+      appointment_at: "2026-07-01T15:00",
+      appointment_sales_name: "Giulia Bianchi",
+      appointment_location: "Meet"
+    }, as: :json
+    assert_response :success
+
+    session.reload
+    # 15:00 Rome (DST) stored as 13:00 UTC.
+    assert_equal "2026-07-01 13:00", session.appointment_at.utc.strftime("%Y-%m-%d %H:%M")
+    assert_equal "Giulia Bianchi", session.appointment_sales_name
+
+    get debrief_presale_session_path(session)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    # The debrief echoes back the same Rome wall-clock for the datetime-local input.
+    assert_equal "2026-07-01T15:00", props.dig("session", "appointment_at_local")
+  end
+
   test "a user cannot update another user's session" do
     sign_in
     other_session = users(:two).presale_sessions.create!

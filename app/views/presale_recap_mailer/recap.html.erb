@@ -3,6 +3,22 @@
 <div style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.5; color: #1f2430;">
   <%= simple_format(@body) %>
 
+  <% if @appointment_display.present? %>
+    <div style="margin: 24px 0; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
+      <p style="margin: 0 0 8px;"><strong>Appuntamento con il commerciale</strong></p>
+      <p style="margin: 0;"><%= @appointment_display %></p>
+      <% if @appointment_sales_name.present? %>
+        <p style="margin: 4px 0 0;">Commerciale: <%= @appointment_sales_name %></p>
+      <% end %>
+      <% if @appointment_location.present? %>
+        <p style="margin: 4px 0 0;">Luogo: <%= @appointment_location %></p>
+      <% end %>
+      <p style="margin: 8px 0 0; font-size: 12px; color: #6b7280;">
+        L'invito è allegato a questa email (appuntamento.ics).
+      </p>
+    </div>
+  <% end %>
+
   <% if @url.present? %>
     <p style="margin: 24px 0;">
       <a href="<%= @url %>"
