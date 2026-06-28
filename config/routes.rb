@@ -22,6 +22,14 @@ Rails.application.routes.draw do
     end
   end
 
+  # Inbound HubSpot webhooks (Fase 3, currently simulated). Server-to-server,
+  # signature-authenticated — see Integrations::Hubspot::BaseController.
+  namespace :integrations do
+    namespace :hubspot do
+      post "appointments", to: "appointments#create"
+    end
+  end
+
   # Public, token-gated recap page sent to the prospect after the call. No login:
   # the unguessable token in the path is the only credential (see PublicRecapsController).
   get "/r/:token", to: "public_recaps#show", as: :public_recap

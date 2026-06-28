@@ -16,6 +16,8 @@ Disallow: /settings
 Disallow: /profile
 Disallow: /letter_opener
 Disallow: /up
+# Server-to-server integration webhooks (signature-authenticated, not for crawling).
+Disallow: /integrations
 # Token-gated prospect recap pages — private despite being public; also noindex'd.
 Disallow: /r/
 

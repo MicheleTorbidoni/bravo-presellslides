@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_22_150000) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_28_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -51,6 +51,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_22_150000) do
     t.datetime "appointment_at"
     t.string "appointment_sales_name"
     t.string "appointment_location"
+    t.string "prospect_email"
+    t.string "prospect_role"
+    t.string "hubspot_contact_id"
+    t.integer "suggested_criticalities", default: [], null: false, array: true
+    t.index ["hubspot_contact_id"], name: "index_presale_sessions_on_hubspot_contact_id"
     t.index ["public_token"], name: "index_presale_sessions_on_public_token", unique: true
     t.index ["user_id"], name: "index_presale_sessions_on_user_id"
   end
