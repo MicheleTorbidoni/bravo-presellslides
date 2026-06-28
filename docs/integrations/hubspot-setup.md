@@ -137,3 +137,36 @@ In alternativa si possono fare prove controllate direttamente sull'account reale
 | `location` | luogo / link riunione |
 
 **Sicurezza (firma):** ogni richiesta deve includere gli header `X-HubSpot-Signature-v3` e `X-HubSpot-Request-Timestamp`. La firma è `Base64(HMAC-SHA256(secret, METHOD + URL + body + timestamp))`; il `secret` è condiviso ed è fornito all'app via la variabile d'ambiente `HUBSPOT_WEBHOOK_SECRET` (in sviluppo un valore di default). Le richieste con firma assente/errata o con timestamp più vecchio di 5 minuti vengono rifiutate con `401`.
+
+---
+
+## Appendice tecnica — Contratto selezione criticità (lato app)
+
+> Seconda direzione del dialogo: dopo la prenotazione, HubSpot invia al prospect un'email con i link alle criticità del suo settore. Cliccando, il prospect valorizza una **proprietà multi-checkbox** sul contatto (vedi sotto); HubSpot notifica l'app dell'aggiornamento. L'app ritrova la sessione tramite l'`contactId` salvato all'inbound e annota le criticità come "suggerite". Anche questo è oggi **simulato**.
+
+**Proprietà custom da creare** (oggetto Contatto, da aggiungere a quelle della sezione 3.2):
+
+| Nome interno proprietà | Tipo | Contenuto |
+|---|---|---|
+| `presell_criticality_interests` | Casella di controllo multipla | Le criticità che il prospect ha indicato come più interessanti (una opzione per criticità, valore = id criticità) |
+
+**Endpoint:** `POST /integrations/hubspot/contact_events`
+
+**Corpo (array di eventi, forma `contact.propertyChange`)** — è la forma con cui HubSpot consegna gli eventi di variazione proprietà (subscription della Private App o azione *Send a webhook* sul cambio proprietà):
+
+```json
+[
+  {
+    "objectId": 12345,
+    "subscriptionType": "contact.propertyChange",
+    "propertyName": "presell_criticality_interests",
+    "propertyValue": "3;7;8"
+  }
+]
+```
+
+- `objectId` = id contatto HubSpot, usato per ritrovare la sessione (la più recente di quel contatto).
+- `propertyValue` = lista `;`-separata di id criticità. L'app tiene solo gli id validi, deduplica e **sostituisce** l'elenco suggerito (idempotente: ogni evento porta il valore completo della proprietà, quindi selezioni multiple e re-invii sono gestiti senza accumulo).
+- Eventi di altro tipo/proprietà, contatti senza sessione e id non validi vengono **ignorati** silenziosamente.
+
+**Sicurezza (firma):** identica all'endpoint inbound (header `X-HubSpot-Signature-v3` / `X-HubSpot-Request-Timestamp`, stesso `HUBSPOT_WEBHOOK_SECRET`).

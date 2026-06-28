@@ -121,19 +121,21 @@ module ContentConfig
       end
     end
 
-    # Resolves the relevant criticalities for a (segment, operational_profile)
-    # combination by looking it up in mappings.json. Returns the matching
-    # criticality hashes ({ id:, label: }) in the order declared in the mapping,
-    # or [] when there is no mapping for the combination (predictable fallback —
-    # the operator will then choose freely in the hub).
-    def criticalities_for(segment:, operational_profile:)
-      mapping = mappings.find do |m|
-        m[:segment] == segment && m[:operationalProfile] == operational_profile
-      end
-      return [] unless mapping
+    # Resolves the criticality subset for a segment (industrial category) as the
+    # union of every mapping for that segment in mappings.json, deduplicated and
+    # returned in canonical order (the order of criticalities.json). The subset is
+    # segment-driven only: the operational_profile no longer selects *which*
+    # criticalities appear (it only varies the content *inside* each flow — see
+    # steps_for / video_url_for). Returns the matching criticality hashes
+    # ({ id:, label: }), or [] for a blank/unknown segment (predictable fallback —
+    # the operator then chooses freely in the hub).
+    def criticalities_for_segment(segment:)
+      return [] if segment.blank?
 
-      by_id = criticalities.index_by { |c| c[:id] }
-      mapping[:criticalities].filter_map { |id| by_id[id] }
+      ids = mappings.select { |m| m[:segment] == segment }
+                    .flat_map { |m| m[:criticalities] }
+                    .to_set
+      criticalities.select { |c| ids.include?(c[:id]) }
     end
 
     # Turns a composite operational_profile key (e.g. "ho-excel-bom-bom1") into a

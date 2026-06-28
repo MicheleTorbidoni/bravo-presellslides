@@ -56,10 +56,7 @@ class PublicRecapsController < ApplicationController
     # and its context-resolved deep-dive video URL. M8 renders the discussed ones
     # with a video as simple links; M9 turns this into embeds + subset exploration.
     def recap_criticalities(session)
-      relevant = ContentConfig.criticalities_for(
-        segment: session.segment,
-        operational_profile: session.operational_profile
-      )
+      relevant = ContentConfig.criticalities_for_segment(segment: session.segment)
       relevant = ContentConfig.criticalities if relevant.empty?
       discussed = session.discussed_criticalities
 

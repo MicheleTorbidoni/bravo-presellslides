@@ -44,23 +44,17 @@ class PresaleSessionsController < ApplicationController
       session: session_detail(@session),
       segmentLabel: segment&.dig(:label),
       profileSteps: ContentConfig.decode_profile(@session.operational_profile),
-      criticalities: ContentConfig.criticalities_for(
-        segment: @session.segment,
-        operational_profile: @session.operational_profile
-      )
+      criticalities: ContentConfig.criticalities_for_segment(segment: @session.segment)
     }
   end
 
   # Prospect-facing context (first custom UI shown to the prospect): the criticality
   # hub + flow loop + closing page. Single Inertia page that switches views
-  # client-side. Hands over the resolved criticality subset (or the full list of 13
-  # as a predictable fallback when the segment x profile combo has no mapping) plus
-  # the criticalities already discussed, so completed ones render as such.
+  # client-side. Hands over the segment's criticality subset (or the full list of 13
+  # as a predictable fallback when the segment is unknown/blank) plus the
+  # criticalities already discussed, so completed ones render as such.
   def present
-    relevant = ContentConfig.criticalities_for(
-      segment: @session.segment,
-      operational_profile: @session.operational_profile
-    )
+    relevant = ContentConfig.criticalities_for_segment(segment: @session.segment)
     render inertia: "Present", props: {
       session: present_session(@session),
       criticalities: relevant.presence || ContentConfig.criticalities,

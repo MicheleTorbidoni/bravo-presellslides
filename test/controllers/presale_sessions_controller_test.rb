@@ -78,13 +78,17 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "present renders in the fallback case with no mapping" do
+  test "present renders in the fallback case with an unknown segment" do
     sign_in
     session = presale_sessions(:one)
-    session.update!(segment: "alimentare", operational_profile: "unmapped-profile")
+    session.update!(segment: "settore-inventato", operational_profile: "ho-excel-bom-bom1")
 
     get present_presale_session_path(session)
     assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    # Unknown segment → no per-segment subset → predictable fallback to all 13.
+    assert_equal false, props["prefiltered"]
+    assert_equal 13, props["criticalities"].size
   end
 
   test "present hands over the slide definitions and the session segment" do
