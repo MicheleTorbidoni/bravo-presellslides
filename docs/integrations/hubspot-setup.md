@@ -113,3 +113,27 @@ In alternativa si possono fare prove controllate direttamente sull'account reale
 3. Ci coordiniamo noi per fornire **URL del webhook + codice segreto** da inserire nel Workflow (sezione 3.3), che sarà l'ultimo passo.
 
 > Ordine consigliato: prima creare private app + proprietà custom (sezioni 3.1–3.2) e l'ambiente di test (3.4); il Workflow (3.3) si finalizza quando l'app è pronta a ricevere.
+
+---
+
+## Appendice tecnica — Contratto inbound (lato app)
+
+> Questa sezione descrive **cosa l'app si aspetta di ricevere**. Oggi l'integrazione è **simulata** (vedi `docs/roadmap/fase-3-hubspot-simulazione/`): l'endpoint è reale e funzionante, ma viene pilotato da un simulatore interno finché HubSpot non è collegato. Quando lo sarà, basterà puntare il Workflow "Send a webhook" a questo endpoint con lo stesso secret — nessuna modifica al codice.
+
+**Endpoint:** `POST /integrations/hubspot/appointments`
+
+**Corpo (flat JSON)** — l'azione *Send a webhook* del Workflow (3.3) va configurata per inviare queste chiavi. Tutte opzionali singolarmente: una prenotazione parziale crea comunque una sessione che l'operatore completa.
+
+| Chiave | Mappata su (sessione) |
+|---|---|
+| `contactId` | id contatto HubSpot (per correlare la selezione criticità successiva) |
+| `firstname` + `lastname` | nome contatto (uniti) |
+| `company` | azienda |
+| `email` | email prospect |
+| `jobtitle` | ruolo prospect |
+| `industry` | segmento industriale (accettato solo se è uno dei segmenti noti dell'app; altrimenti lasciato vuoto) |
+| `appointmentAt` | data/ora appuntamento (ISO 8601) |
+| `salesName` | nome commerciale |
+| `location` | luogo / link riunione |
+
+**Sicurezza (firma):** ogni richiesta deve includere gli header `X-HubSpot-Signature-v3` e `X-HubSpot-Request-Timestamp`. La firma è `Base64(HMAC-SHA256(secret, METHOD + URL + body + timestamp))`; il `secret` è condiviso ed è fornito all'app via la variabile d'ambiente `HUBSPOT_WEBHOOK_SECRET` (in sviluppo un valore di default). Le richieste con firma assente/errata o con timestamp più vecchio di 5 minuti vengono rifiutate con `401`.
