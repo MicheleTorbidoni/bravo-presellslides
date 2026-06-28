@@ -3,6 +3,12 @@
 # endpoints and signature verification are built to match HubSpot's real
 # shapes, so connecting the real account later is configuration, not code.
 module Hubspot
+  # The HubSpot contact property the prospect's criticality selection lands on. The
+  # selection email's links flip this multi-checkbox property; HubSpot then notifies
+  # the app with a `contact.propertyChange` event carrying its `;`-separated value.
+  # Single source of truth, shared by the webhook handler, the docs and the M13 simulator.
+  CRITICALITY_PROPERTY = "presell_criticality_interests"
+
   # Shared secret used to sign/verify inbound webhooks. With real HubSpot this is
   # the client secret of the Private App; in development/test a fixed fallback
   # keeps the signed round-trip working without any external setup.

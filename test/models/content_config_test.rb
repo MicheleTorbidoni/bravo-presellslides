@@ -42,26 +42,19 @@ class ContentConfigTest < ActiveSupport::TestCase
     end
   end
 
-  test "criticalities_for resolves a known segment x profile to its subset" do
-    resolved = ContentConfig.criticalities_for(
-      segment: "meccanica",
-      operational_profile: "ho-excel-bom-bom1"
-    )
+  test "criticalities_for_segment resolves a known segment to its subset" do
+    resolved = ContentConfig.criticalities_for_segment(segment: "meccanica")
 
     assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], resolved.map { |c| c[:id] }
     assert(resolved.all? { |c| c[:label].present? })
   end
 
-  test "the criticality subset is the same across all operational profiles of a segment" do
-    subsets = ContentConfig.operational_profiles.map do |profile|
-      ContentConfig.criticalities_for(
-        segment: "meccanica",
-        operational_profile: profile
-      ).map { |c| c[:id] }
-    end
+  test "criticalities_for_segment unions the segment's mappings, deduped and in canonical order" do
+    # imballaggi-e-packaging declares its ids out of order (… 6, 5, 7) across
+    # mappings; the union normalises to canonical (id-ascending) order with no dupes.
+    resolved = ContentConfig.criticalities_for_segment(segment: "imballaggi-e-packaging")
 
-    assert_equal 1, subsets.uniq.size, "expected identical copies across profiles for now"
-    assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], subsets.first
+    assert_equal [ 1, 2, 3, 4, 5, 6, 7 ], resolved.map { |c| c[:id] }
   end
 
   test "operational_profiles enumerates every decision-tree leaf path" do
@@ -75,32 +68,26 @@ class ContentConfigTest < ActiveSupport::TestCase
     assert(profiles.all? { |p| ContentConfig.decode_profile(p).any? })
   end
 
-  test "every segment x operational profile combination has a non-empty mapping" do
+  test "mappings cover every segment x operational profile and every segment resolves a non-empty subset" do
     segment_ids = ContentConfig.segments.map { |s| s[:id] }
     profiles = ContentConfig.operational_profiles
 
+    # Data-integrity invariant: a row for each (segment, profile) combination, each
+    # with at least one criticality.
     assert_equal segment_ids.size * profiles.size, ContentConfig.mappings.size
+    assert(ContentConfig.mappings.all? { |m| m[:criticalities].any? })
 
+    # Every known segment resolves to a non-empty per-segment subset.
     segment_ids.each do |segment|
-      profiles.each do |profile|
-        resolved = ContentConfig.criticalities_for(
-          segment: segment,
-          operational_profile: profile
-        )
-        assert resolved.any?, "no criticalities for #{segment} x #{profile}"
-      end
+      assert ContentConfig.criticalities_for_segment(segment: segment).any?,
+        "no criticalities for segment #{segment}"
     end
   end
 
-  test "criticalities_for returns [] for an unmapped combination (fallback)" do
-    assert_equal [], ContentConfig.criticalities_for(
-      segment: "meccanica",
-      operational_profile: "does-not-exist"
-    )
-    assert_equal [], ContentConfig.criticalities_for(
-      segment: "meccanica",
-      operational_profile: nil
-    )
+  test "criticalities_for_segment returns [] for an unknown or blank segment (fallback)" do
+    assert_equal [], ContentConfig.criticalities_for_segment(segment: "does-not-exist")
+    assert_equal [], ContentConfig.criticalities_for_segment(segment: nil)
+    assert_equal [], ContentConfig.criticalities_for_segment(segment: "")
   end
 
   test "decode_profile walks the tree into readable question/answer steps" do

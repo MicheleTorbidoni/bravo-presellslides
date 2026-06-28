@@ -27,6 +27,7 @@ Rails.application.routes.draw do
   namespace :integrations do
     namespace :hubspot do
       post "appointments", to: "appointments#create"
+      post "contact_events", to: "contact_events#create"
     end
   end
 
