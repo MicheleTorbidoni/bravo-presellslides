@@ -2,6 +2,8 @@ import { Head, router } from "@inertiajs/react"
 import { Info, Pencil } from "lucide-react"
 import { AppShell } from "@/components/AppShell"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 type SessionDetail = {
   id: number
@@ -19,11 +21,13 @@ export default function PresaleSessionResult({
   segmentLabel,
   profileSteps,
   criticalities,
+  suggested = [],
 }: {
   session: SessionDetail
   segmentLabel: string | null
   profileSteps: ProfileStep[]
   criticalities: Criticality[]
+  suggested?: number[]
 }) {
   return (
     <>
@@ -72,16 +76,35 @@ export default function PresaleSessionResult({
           <h2 className="text-base font-semibold text-ink-display">
             Criticità rilevanti
           </h2>
+          {suggested.length > 0 && (
+            <p className="mt-2 text-sm text-ink-muted">
+              Le criticità contrassegnate sono già state indicate dal prospect in
+              fase di prenotazione.
+            </p>
+          )}
           {criticalities.length > 0 ? (
             <ul className="mt-3 flex flex-col gap-2">
-              {criticalities.map((c) => (
-                <li
-                  key={c.id}
-                  className="rounded-md border border-hairline bg-page px-4 py-3 text-sm text-ink-body"
-                >
-                  {c.label}
-                </li>
-              ))}
+              {criticalities.map((c) => {
+                const isSuggested = suggested.includes(c.id)
+                return (
+                  <li
+                    key={c.id}
+                    className={cn(
+                      "flex items-center justify-between gap-3 rounded-md border px-4 py-3 text-sm",
+                      isSuggested
+                        ? "border-accent/40 bg-accent/5 text-ink-display"
+                        : "border-hairline bg-page text-ink-body",
+                    )}
+                  >
+                    <span>{c.label}</span>
+                    {isSuggested && (
+                      <Badge tone="accent" className="shrink-0">
+                        Indicata dal prospect
+                      </Badge>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           ) : (
             <div className="mt-3 flex items-start gap-3 rounded-md border border-dashed border-hairline px-4 py-4">

@@ -44,7 +44,8 @@ class PresaleSessionsController < ApplicationController
       session: session_detail(@session),
       segmentLabel: segment&.dig(:label),
       profileSteps: ContentConfig.decode_profile(@session.operational_profile),
-      criticalities: ContentConfig.criticalities_for_segment(segment: @session.segment)
+      criticalities: ContentConfig.criticalities_for_segment(segment: @session.segment),
+      suggested: @session.suggested_criticalities
     }
   end
 
@@ -61,6 +62,7 @@ class PresaleSessionsController < ApplicationController
       prefiltered: relevant.any?,
       introSteps: ContentConfig.intro_steps,
       discussedCriticalities: @session.discussed_criticalities,
+      suggestedCriticalities: @session.suggested_criticalities,
       stepsByCriticality: steps_by_criticality(@session),
       capturedQuestions: @session.captured_questions
     }
@@ -148,6 +150,7 @@ class PresaleSessionsController < ApplicationController
     def session_detail(session)
       session_summary(session).merge(
         contact_name: session.contact_name,
+        prospect_email: session.prospect_email,
         segment: session.segment,
         operational_profile: session.operational_profile,
         # Rome wall-clock string for the datetime-local input (stable regardless of

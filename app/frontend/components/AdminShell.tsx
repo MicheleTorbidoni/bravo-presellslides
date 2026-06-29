@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Home, Palette, Users } from "lucide-react"
+import { Home, Palette, Users, Webhook } from "lucide-react"
 import { MainNav, type NavItemDef } from "@/components/MainNav"
 
 const ADMIN_NAV_ITEMS: NavItemDef[] = [
@@ -20,6 +20,12 @@ const ADMIN_NAV_ITEMS: NavItemDef[] = [
     icon: Palette,
     label: "Design System",
     match: (url) => url.startsWith("/admin/design-system"),
+  },
+  {
+    href: "/admin/hubspot-simulator",
+    icon: Webhook,
+    label: "HubSpot Simulator",
+    match: (url) => url.startsWith("/admin/hubspot-simulator"),
   },
 ]
 

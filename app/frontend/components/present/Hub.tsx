@@ -8,7 +8,7 @@
 // separate "start" button — with 4-5 relevant criticalities per set they all fit).
 // Already-discussed criticalities render as completed (white pill, amber text,
 // shield — Figma node 62-619) and can be re-opened.
-import { ShieldCheck } from "lucide-react"
+import { ShieldCheck, Star } from "lucide-react"
 import { Stage } from "./Stage"
 import { Logo } from "./Logo"
 
@@ -17,11 +17,16 @@ export type Criticality = { id: number; label: string }
 export function Hub({
   criticalities,
   discussed,
+  suggested,
   prefiltered,
   onPick,
 }: {
   criticalities: Criticality[]
   discussed: number[]
+  // Criticalities the prospect pre-flagged as interesting (from HubSpot, M13).
+  // Marked with an amber star; independent of the done state — a pill can be both
+  // suggested and completed (star + shield).
+  suggested: number[]
   prefiltered: boolean
   onPick: (id: number) => void
 }) {
@@ -40,6 +45,7 @@ export function Hub({
         <ul className="grid flex-1 grid-cols-2 content-center justify-items-center gap-x-[5cqw] gap-y-[2.2cqw] py-[2cqw]">
           {criticalities.map((c) => {
             const isDone = discussed.includes(c.id)
+            const isSuggested = suggested.includes(c.id)
             return (
               <li key={c.id}>
                 <button
@@ -53,6 +59,9 @@ export function Hub({
                   ].join(" ")}
                 >
                   <span className="flex skew-x-12 items-center gap-[0.7cqw] text-[1.85cqw] font-bold tracking-tight">
+                    {isSuggested && (
+                      <Star className="size-[1.85cqw] shrink-0 fill-bm-amber text-bm-amber" />
+                    )}
                     {isDone && (
                       <ShieldCheck className="size-[1.85cqw] shrink-0 text-bm-amber" />
                     )}
