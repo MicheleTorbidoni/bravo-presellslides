@@ -61,6 +61,18 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "result hands over the prospect's suggested criticalities for the badge" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      suggested_criticalities: [ 1, 3 ])
+
+    get result_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal [ 1, 3 ], props["suggested"]
+  end
+
   test "a user cannot open another user's session flow" do
     sign_in
     other_session = users(:two).presale_sessions.create!
@@ -115,11 +127,23 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [], props["capturedQuestions"]
   end
 
+  test "present hands over the prospect's suggested criticalities for the hub badge" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", suggested_criticalities: [ 1, 3 ])
+
+    get present_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal [ 1, 3 ], props["suggestedCriticalities"]
+  end
+
   test "debrief renders the summary, enriched questions and a generated recap body" do
     sign_in
     session = presale_sessions(:one)
     session.update!(
       company_name: "Acme Spa", contact_name: "Mario Rossi",
+      prospect_email: "mario.rossi@acme.it",
       segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
       discussed_criticalities: [ 1 ], status: "closed",
       captured_questions: [
@@ -134,6 +158,8 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal "meccanica", props.dig("session", "segment")
     assert_equal "closed", props.dig("session", "status")
+    # The prospect's email pre-fills the recap recipient field in the dialog.
+    assert_equal "mario.rossi@acme.it", props.dig("session", "prospect_email")
     assert_includes props["discussedCriticalities"], "Tempi di produzione non raccolti"
     # captured questions are enriched with the criticality label ("Generale" if none)
     assert_equal "Tempi di produzione non raccolti", props.dig("capturedQuestions", 0, "criticality_label")

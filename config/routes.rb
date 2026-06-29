@@ -50,6 +50,10 @@ Rails.application.routes.draw do
     root to: redirect("/admin/users")
     get "design-system", to: "design_system#show", as: :design_system
     resources :users, only: %i[ index show ]
+    # Internal HubSpot simulator (Fase 3, M13): one click stages the whole
+    # App↔HubSpot dialogue against the real signed webhook endpoints.
+    get  "hubspot-simulator", to: "hubspot_simulator#show", as: :hubspot_simulator
+    post "hubspot-simulator/simulate", to: "hubspot_simulator#simulate", as: :simulate_hubspot_simulator
   end
 
   get   "profile",          to: "profiles#details",          as: :profile

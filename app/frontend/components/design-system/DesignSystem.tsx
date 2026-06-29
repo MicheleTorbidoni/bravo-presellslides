@@ -20,6 +20,7 @@ import { BadgesSection } from "@/components/design-system/sections/elements/Badg
 import { ToggleButtonsSection } from "@/components/design-system/sections/elements/ToggleButtonsSection";
 import { ListingsSection } from "@/components/design-system/sections/elements/ListingsSection";
 import { ModalSection } from "@/components/design-system/sections/elements/ModalSection";
+import { AccordionSection } from "@/components/design-system/sections/elements/AccordionSection";
 import { CalloutSection } from "@/components/design-system/sections/elements/CalloutSection";
 import { DropdownMenuSection } from "@/components/design-system/sections/elements/DropdownMenuSection";
 
@@ -118,6 +119,7 @@ export function DesignSystem() {
           <ListingsSection />
           <ModalSection />
           <DropdownMenuSection />
+          <AccordionSection />
           <CalloutSection />
           <BaseStylesSection />
         </main>

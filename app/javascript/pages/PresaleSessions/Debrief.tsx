@@ -22,6 +22,7 @@ type SessionDetail = {
   id: number
   company_name: string | null
   contact_name: string | null
+  prospect_email: string | null
   segment: string | null
   operational_profile: string | null
   status: SessionStatus
@@ -145,7 +146,10 @@ export default function PresaleSessionDebrief({
   // Send-recap modal: data bound via useForm, validation errors surfaced from the
   // shared errors prop (the controller redirects with inertia: { errors }).
   const [modalOpen, setModalOpen] = useState(false)
-  const form = useForm({ recipient: "", body: defaultRecapBody })
+  const form = useForm({
+    recipient: session.prospect_email ?? "",
+    body: defaultRecapBody,
+  })
 
   // Copy-to-clipboard for the prospect's public recap link (same pattern as the
   // design-system CodeBlock). The link exists only once the recap has been sent.

@@ -1,5 +1,10 @@
 import { Head } from "@inertiajs/react"
 import { CalendarPlus, ExternalLink } from "lucide-react"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
@@ -115,19 +120,19 @@ export default function PublicRecap({
           </section>
 
           {otherVideos.length > 0 && (
-            <section className="mt-8">
-              <h2 className="text-base font-semibold text-ink-display">
+            // Collapsed by default so the prospect first focuses on what was actually
+            // discussed; the extra deep-dives stay one click away. The lazy iframes
+            // inside don't load until the section is opened.
+            <Accordion className="mt-8">
+              <AccordionTrigger description="Temi vicini al tuo contesto che potrebbero interessarti.">
                 Altri approfondimenti
-              </h2>
-              <p className="mt-1 text-sm text-ink-muted">
-                Temi vicini al tuo contesto che potrebbero interessarti.
-              </p>
-              <div className="mt-3 flex flex-col gap-6">
+              </AccordionTrigger>
+              <AccordionContent className="flex flex-col gap-6 pt-2">
                 {otherVideos.map((c) => (
                   <VideoCard key={c.id} criticality={c} />
                 ))}
-              </div>
-            </section>
+              </AccordionContent>
+            </Accordion>
           )}
 
           {appointment && (

@@ -84,6 +84,7 @@ export default function Present({
   prefiltered,
   introSteps,
   discussedCriticalities,
+  suggestedCriticalities,
   stepsByCriticality,
   capturedQuestions,
 }: {
@@ -92,6 +93,7 @@ export default function Present({
   prefiltered: boolean
   introSteps: Step[]
   discussedCriticalities: number[]
+  suggestedCriticalities: number[]
   stepsByCriticality: Record<number, Step[]>
   capturedQuestions: CapturedQuestion[]
 }) {
@@ -276,6 +278,7 @@ export default function Present({
         <Hub
           criticalities={criticalities}
           discussed={discussed}
+          suggested={suggestedCriticalities}
           prefiltered={prefiltered}
           onPick={pick}
         />
