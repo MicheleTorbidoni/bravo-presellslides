@@ -1,0 +1,28 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "File Access",
+      "warning_code": 16,
+      "fingerprint": "a6bc9da8b2a280350f11a74f2b8650373ec78bf3b6bd5bf384b26a8b9bfd8841",
+      "check_name": "SendFile",
+      "message": "Parameter value used in file name",
+      "file": "app/controllers/presentation_assets_controller.rb",
+      "line": 24,
+      "link": "https://brakemanscanner.org/docs/warning_types/file_access/",
+      "code": "send_file(Rails.root.join(\"content\", \"assets\").join(params[:dir], File.basename(params[:filename].to_s)), :type => \"image/png\", :disposition => \"inline\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "PresentationAssetsController",
+        "method": "show"
+      },
+      "user_input": "params[:filename].to_s",
+      "confidence": "Weak",
+      "cwe_id": [
+        22
+      ],
+      "note": "Path traversal not reachable: :dir is whitelisted via valid_dir? (must equal ContentConfig::SHARED_DIR/INTRO_DIR or a known segment id) and :filename is passed through File.basename, stripping any directory component. File.file? guards missing files. Serving is auth-gated."
+    }
+  ],
+  "brakeman_version": "8.0.5"
+}
