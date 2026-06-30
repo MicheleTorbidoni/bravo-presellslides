@@ -83,6 +83,7 @@ export default function Present({
   criticalities,
   prefiltered,
   introSteps,
+  showIntro,
   discussedCriticalities,
   suggestedCriticalities,
   stepsByCriticality,
@@ -92,14 +93,26 @@ export default function Present({
   criticalities: Criticality[]
   prefiltered: boolean
   introSteps: Step[]
+  showIntro: boolean
   discussedCriticalities: number[]
   suggestedCriticalities: number[]
   stepsByCriticality: Record<number, Step[]>
   capturedQuestions: CapturedQuestion[]
 }) {
-  // The intro plays first when present; otherwise land straight on the hub.
+  // When exactly one criticality is enabled the hub adds nothing, so we skip it and
+  // land straight in that criticality (a first step toward the planned "no hub" mode).
+  const singleCriticality =
+    criticalities.length === 1 ? criticalities[0].id : null
+  const playIntro = showIntro && introSteps.length > 0
+
+  // The intro plays first when enabled; otherwise go straight to the single
+  // criticality (if only one) or the hub.
   const [view, setView] = useState<View>(
-    introSteps.length > 0 ? { name: "intro" } : { name: "hub" },
+    playIntro
+      ? { name: "intro" }
+      : singleCriticality !== null
+        ? { name: "flow", criticalityId: singleCriticality }
+        : { name: "hub" },
   )
   const [discussed, setDiscussed] = useState<number[]>(discussedCriticalities)
   // Ephemeral position within the current flow: which step, and which phase of a
@@ -133,12 +146,17 @@ export default function Present({
     [discussed, session.id],
   )
 
-  // Finishing the intro enters the hub (resetting the ephemeral position). From
-  // here on the session behaves exactly as before — the intro never replays.
+  // Finishing the intro moves on (resetting the ephemeral position): straight into
+  // the single enabled criticality when there's only one, otherwise the hub. The
+  // intro never replays.
   const enterHub = useCallback(() => {
     setPosition({ stepIndex: 0, phaseIndex: 0 })
-    setView({ name: "hub" })
-  }, [])
+    setView(
+      singleCriticality !== null
+        ? { name: "flow", criticalityId: singleCriticality }
+        : { name: "hub" },
+    )
+  }, [singleCriticality])
 
   // Advance: step through a step's phases, then to the next step, then end the
   // sequence. The intro and the flow share the step/phase math (advancePosition);
@@ -308,8 +326,8 @@ export default function Present({
           companyName={session.company_name}
           contactName={session.contact_name}
           onBack={() => setView({ name: "hub" })}
-          onDebrief={() =>
-            router.visit(`/presale_sessions/${session.id}/debrief`)
+          onSummary={() =>
+            router.visit(`/presale_sessions/${session.id}/result`)
           }
         />
       )}

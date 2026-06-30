@@ -42,7 +42,9 @@ export default function PresaleSessionProfiling({
     await apiPatch(`/presale_sessions/${session.id}`, {
       operational_profile: operationalProfile,
     })
-    router.visit(`/presale_sessions/${session.id}/result`)
+    // Straight into the presentation: the result/summary screen is now shown only
+    // at the end (after the operator presses C → Closing → "Vai al riepilogo").
+    router.visit(`/presale_sessions/${session.id}/present`)
   }
 
   function back() {

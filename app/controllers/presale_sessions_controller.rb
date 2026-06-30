@@ -21,11 +21,18 @@ class PresaleSessionsController < ApplicationController
     redirect_to setup_presale_session_path(session)
   end
 
-  # Step 1 of the internal flow: prospect data + industrial segment.
+  # Step 1 of the internal flow: prospect data, industrial segment, the criticality
+  # subset to discuss, and whether the intro plays. criticalitiesBySegment lets the
+  # client re-render the criticality list as the operator switches segment without a
+  # round-trip; selectedCriticalities is the effective (already-defaulted) selection.
   def setup
     render inertia: "PresaleSessions/Setup", props: {
       session: session_detail(@session),
-      segments: ContentConfig.segments
+      segments: ContentConfig.segments,
+      criticalitiesBySegment: ContentConfig.segments.to_h { |s| [ s[:id], ContentConfig.criticalities_for_segment(segment: s[:id]) ] },
+      selectedCriticalities: effective_selected_ids(@session),
+      suggested: @session.suggested_criticalities,
+      showIntro: @session.show_intro
     }
   end
 
@@ -37,15 +44,19 @@ class PresaleSessionsController < ApplicationController
     }
   end
 
-  # Step 3: the computed operational profile + the resolved criticality subset.
+  # Step 3 — now the end-of-session summary (the forward flow skips it; it's reached
+  # again only when the operator presses C → Closing → "Vai al riepilogo"). Shows the
+  # selected criticality subset with the discussed ones marked.
   def result
     segment = ContentConfig.segments.find { |s| s[:id] == @session.segment }
+    ids = effective_selected_ids(@session)
     render inertia: "PresaleSessions/Result", props: {
       session: session_detail(@session),
       segmentLabel: segment&.dig(:label),
       profileSteps: ContentConfig.decode_profile(@session.operational_profile),
-      criticalities: ContentConfig.criticalities_for_segment(segment: @session.segment),
-      suggested: @session.suggested_criticalities
+      criticalities: ContentConfig.criticalities.select { |c| ids.include?(c[:id]) },
+      suggested: @session.suggested_criticalities,
+      discussed: @session.discussed_criticalities
     }
   end
 
@@ -55,12 +66,14 @@ class PresaleSessionsController < ApplicationController
   # as a predictable fallback when the segment is unknown/blank) plus the
   # criticalities already discussed, so completed ones render as such.
   def present
-    relevant = ContentConfig.criticalities_for_segment(segment: @session.segment)
+    ids = effective_selected_ids(@session)
+    relevant = ContentConfig.criticalities.select { |c| ids.include?(c[:id]) }
     render inertia: "Present", props: {
       session: present_session(@session),
       criticalities: relevant.presence || ContentConfig.criticalities,
       prefiltered: relevant.any?,
       introSteps: ContentConfig.intro_steps,
+      showIntro: @session.show_intro,
       discussedCriticalities: @session.discussed_criticalities,
       suggestedCriticalities: @session.suggested_criticalities,
       stepsByCriticality: steps_by_criticality(@session),
@@ -133,6 +146,20 @@ class PresaleSessionsController < ApplicationController
   private
     def set_session
       @session = Current.user.presale_sessions.find(params[:id])
+    end
+
+    # The criticalities the session will actually discuss, as ids in no particular
+    # order. Single source of truth for setup/present/result. nil selection means
+    # the operator never chose, so we default: the prospect's suggestions (if any,
+    # intersected with the segment) else the whole segment subset. An explicit
+    # selection (including []) is honoured, but always clamped to the segment so a
+    # later segment change can't leave stale ids behind.
+    def effective_selected_ids(session)
+      segment_ids = ContentConfig.criticalities_for_segment(segment: session.segment).map { |c| c[:id] }
+      return session.selected_criticalities & segment_ids unless session.selected_criticalities.nil?
+
+      suggested = session.suggested_criticalities & segment_ids
+      suggested.presence || segment_ids
     end
 
     def session_summary(session)
@@ -235,9 +262,11 @@ class PresaleSessionsController < ApplicationController
         :segment,
         :operational_profile,
         :status,
+        :show_intro,
         :appointment_at,
         :appointment_sales_name,
         :appointment_location,
+        selected_criticalities: [],
         discussed_criticalities: [],
         captured_questions: [ :id, :text, :criticality_id, :slide_id, :asked_at ]
       )
