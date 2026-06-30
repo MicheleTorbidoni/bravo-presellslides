@@ -1,6 +1,23 @@
 import { useEffect, useRef, useState } from "react"
 import { Head, router } from "@inertiajs/react"
-import { ArrowRight, Check, X } from "lucide-react"
+import { ArrowRight, Check, GripVertical, X } from "lucide-react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { AppShell } from "@/components/AppShell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,34 +37,116 @@ type SessionDetail = {
   segment: string | null
 }
 
+// A single criticality row: a drag handle (the only drag-initiating element, so the
+// checkbox stays clickable), the enable/disable checkbox, the label, and the
+// "suggested by prospect" badge.
+function SortableCriticality({
+  criticality,
+  isOn,
+  isSuggested,
+  onToggle,
+}: {
+  criticality: Criticality
+  isOn: boolean
+  isSuggested: boolean
+  onToggle: (id: number) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: criticality.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-md border px-4 py-3 text-sm text-ink-body transition-colors",
+        isOn ? "border-accent/40 bg-accent/5" : "border-hairline bg-page",
+        isDragging && "relative z-10 shadow-lg",
+      )}
+    >
+      <span className="flex items-center gap-3">
+        <button
+          type="button"
+          aria-label="Trascina per riordinare"
+          className="-ml-1 cursor-grab touch-none text-ink-muted transition-colors hover:text-ink-body active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <label className="flex cursor-pointer items-center gap-3 font-normal text-ink-body">
+          <Checkbox checked={isOn} onChange={() => onToggle(criticality.id)} />
+          <span>{criticality.label}</span>
+        </label>
+      </span>
+      {isSuggested && (
+        <Badge tone="accent" className="shrink-0">
+          Indicata dal prospect
+        </Badge>
+      )}
+    </li>
+  )
+}
+
 export default function PresaleSessionSetup({
   session,
   segments,
   criticalitiesBySegment,
   selectedCriticalities,
+  criticalitiesOrder,
   suggested,
   showIntro: showIntroProp,
+  showHub: showHubProp,
 }: {
   session: SessionDetail
   segments: Segment[]
   criticalitiesBySegment: Record<string, Criticality[]>
   selectedCriticalities: number[]
+  criticalitiesOrder: number[]
   suggested: number[]
   showIntro: boolean
+  showHub: boolean
 }) {
   const [companyName, setCompanyName] = useState(session.company_name ?? "")
   const [contactName, setContactName] = useState(session.contact_name ?? "")
   const [segment, setSegment] = useState<string | null>(session.segment)
   const [selected, setSelected] = useState<number[]>(selectedCriticalities)
+  const [order, setOrder] = useState<number[]>(criticalitiesOrder)
   const [showIntro, setShowIntro] = useState(showIntroProp)
+  const [showHub, setShowHub] = useState(showHubProp)
   const [showError, setShowError] = useState(false)
 
   const url = `/presale_sessions/${session.id}`
 
-  // Criticalities available for the currently-selected segment.
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
+  // Criticalities available for the currently-selected segment, indexed for lookup,
+  // and resolved in the operator's chosen order (any segment criticality missing
+  // from `order` is appended so nothing disappears from the list).
   const segmentCriticalities = segment
     ? (criticalitiesBySegment[segment] ?? [])
     : []
+  const byId = new Map(segmentCriticalities.map((c) => [c.id, c]))
+  const orderedCriticalities = [
+    ...order.filter((id) => byId.has(id)),
+    ...segmentCriticalities.map((c) => c.id).filter((id) => !order.includes(id)),
+  ].map((id) => byId.get(id)!)
 
   // Debounced auto-save: persist the prospect data, criticality selection and the
   // intro toggle as the operator edits them, so nothing is lost mid-setup.
@@ -63,18 +162,23 @@ export default function PresaleSessionSetup({
         contact_name: contactName,
         segment,
         selected_criticalities: selected,
+        criticalities_order: order,
         show_intro: showIntro,
+        show_hub: showHub,
       })
     }, 400)
     return () => clearTimeout(timer)
-  }, [companyName, contactName, segment, selected, showIntro, url])
+  }, [companyName, contactName, segment, selected, order, showIntro, showHub, url])
 
-  // Switching segment changes which criticalities exist, so reset the selection to
-  // the new segment's full set (the "all enabled by default" rule) — any previous
-  // choice referred to a different segment and would otherwise leave stale ids.
+  // Switching segment changes which criticalities exist, so reset both the selection
+  // and the order to the new segment's full set in default order (the "all enabled by
+  // default" rule) — any previous choice referred to a different segment and would
+  // otherwise leave stale ids.
   function pickSegment(segId: string) {
+    const ids = (criticalitiesBySegment[segId] ?? []).map((c) => c.id)
     setSegment(segId)
-    setSelected((criticalitiesBySegment[segId] ?? []).map((c) => c.id))
+    setSelected(ids)
+    setOrder(ids)
     setShowError(false)
   }
 
@@ -83,6 +187,21 @@ export default function PresaleSessionSetup({
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
     setShowError(false)
+  }
+
+  // Reorder the criticality list: dropping a row moves it within `order`, which
+  // drives both this list and the presentation sequence.
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setOrder((prev) => {
+      const ids = orderedCriticalities.map((c) => c.id)
+      const base = prev.length === ids.length ? prev : ids
+      const oldIndex = base.indexOf(Number(active.id))
+      const newIndex = base.indexOf(Number(over.id))
+      if (oldIndex === -1 || newIndex === -1) return prev
+      return arrayMove(base, oldIndex, newIndex)
+    })
   }
 
   async function continueToProfiling() {
@@ -95,7 +214,9 @@ export default function PresaleSessionSetup({
       contact_name: contactName,
       segment,
       selected_criticalities: selected,
+      criticalities_order: order,
       show_intro: showIntro,
+      show_hub: showHub,
     })
     router.visit(`/presale_sessions/${session.id}/profiling`)
   }
@@ -190,54 +311,55 @@ export default function PresaleSessionSetup({
               Criticità da discutere
             </h2>
             <p className="mt-1 text-sm text-ink-muted">
-              Scegli le criticità che verranno presentate nell'hub.
+              Abilita le criticità da presentare e trascinale per scegliere
+              l'ordine.
               {suggested.length > 0 &&
                 " Quelle contrassegnate sono già state indicate dal prospect."}
             </p>
-            <ul className="mt-3 flex flex-col gap-2">
-              {segmentCriticalities.map((c) => {
-                const isSuggested = suggested.includes(c.id)
-                const isOn = selected.includes(c.id)
-                return (
-                  <li key={c.id}>
-                    <label
-                      className={cn(
-                        "flex cursor-pointer items-center justify-between gap-3 rounded-md border px-4 py-3 text-sm font-normal text-ink-body transition-colors",
-                        isOn
-                          ? "border-accent/40 bg-accent/5"
-                          : "border-hairline bg-page",
-                      )}
-                    >
-                      <span className="flex items-center gap-3">
-                        <Checkbox
-                          checked={isOn}
-                          onChange={() => toggleCriticality(c.id)}
-                        />
-                        <span>{c.label}</span>
-                      </span>
-                      {isSuggested && (
-                        <Badge tone="accent" className="shrink-0">
-                          Indicata dal prospect
-                        </Badge>
-                      )}
-                    </label>
-                  </li>
-                )
-              })}
-            </ul>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={orderedCriticalities.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <ul className="mt-3 flex flex-col gap-2">
+                  {orderedCriticalities.map((c) => (
+                    <SortableCriticality
+                      key={c.id}
+                      criticality={c}
+                      isOn={selected.includes(c.id)}
+                      isSuggested={suggested.includes(c.id)}
+                      onToggle={toggleCriticality}
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
             {showError && segment && selected.length === 0 && (
               <p className="mt-2 text-xs text-danger-display">
                 Abilita almeno una criticità per continuare.
               </p>
             )}
 
-            <label className="mt-5 flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
-              <Checkbox
-                checked={showIntro}
-                onChange={(e) => setShowIntro(e.target.checked)}
-              />
-              <span>Mostra l'introduzione al prospect prima dell'hub</span>
-            </label>
+            <div className="mt-5 flex flex-col gap-3">
+              <label className="flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
+                <Checkbox
+                  checked={showIntro}
+                  onChange={(e) => setShowIntro(e.target.checked)}
+                />
+                <span>Mostra l'introduzione all'inizio</span>
+              </label>
+              <label className="flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
+                <Checkbox
+                  checked={showHub}
+                  onChange={(e) => setShowHub(e.target.checked)}
+                />
+                <span>Mostra l'hub tra le criticità</span>
+              </label>
+            </div>
           </div>
         )}
 

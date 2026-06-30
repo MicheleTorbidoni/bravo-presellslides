@@ -31,8 +31,10 @@ class PresaleSessionsController < ApplicationController
       segments: ContentConfig.segments,
       criticalitiesBySegment: ContentConfig.segments.to_h { |s| [ s[:id], ContentConfig.criticalities_for_segment(segment: s[:id]) ] },
       selectedCriticalities: effective_selected_ids(@session),
+      criticalitiesOrder: effective_criticalities_order(@session),
       suggested: @session.suggested_criticalities,
-      showIntro: @session.show_intro
+      showIntro: @session.show_intro,
+      showHub: @session.show_hub
     }
   end
 
@@ -66,14 +68,17 @@ class PresaleSessionsController < ApplicationController
   # as a predictable fallback when the segment is unknown/blank) plus the
   # criticalities already discussed, so completed ones render as such.
   def present
+    # Enabled criticalities, in the operator's chosen order (drag-and-drop in setup).
     ids = effective_selected_ids(@session)
-    relevant = ContentConfig.criticalities.select { |c| ids.include?(c[:id]) }
+    by_id = ContentConfig.criticalities.index_by { |c| c[:id] }
+    relevant = effective_criticalities_order(@session).select { |id| ids.include?(id) }.filter_map { |id| by_id[id] }
     render inertia: "Present", props: {
       session: present_session(@session),
       criticalities: relevant.presence || ContentConfig.criticalities,
       prefiltered: relevant.any?,
       introSteps: ContentConfig.intro_steps,
       showIntro: @session.show_intro,
+      showHub: @session.show_hub,
       discussedCriticalities: @session.discussed_criticalities,
       suggestedCriticalities: @session.suggested_criticalities,
       stepsByCriticality: steps_by_criticality(@session),
@@ -160,6 +165,17 @@ class PresaleSessionsController < ApplicationController
 
       suggested = session.suggested_criticalities & segment_ids
       suggested.presence || segment_ids
+    end
+
+    # The full, ordered list of the segment's criticality ids (enabled and disabled),
+    # used to drive both the setup list order and the presentation sequence. The saved
+    # order is honoured but clamped to the current segment; any segment ids not yet in
+    # the saved order (new content, or a never-reordered session) are appended in the
+    # segment's default order.
+    def effective_criticalities_order(session)
+      segment_ids = ContentConfig.criticalities_for_segment(segment: session.segment).map { |c| c[:id] }
+      saved = (session.criticalities_order || []) & segment_ids
+      saved + (segment_ids - saved)
     end
 
     def session_summary(session)
@@ -263,10 +279,12 @@ class PresaleSessionsController < ApplicationController
         :operational_profile,
         :status,
         :show_intro,
+        :show_hub,
         :appointment_at,
         :appointment_sales_name,
         :appointment_location,
         selected_criticalities: [],
+        criticalities_order: [],
         discussed_criticalities: [],
         captured_questions: [ :id, :text, :criticality_id, :slide_id, :asked_at ]
       )

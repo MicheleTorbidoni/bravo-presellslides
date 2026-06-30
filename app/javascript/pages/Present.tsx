@@ -84,6 +84,7 @@ export default function Present({
   prefiltered,
   introSteps,
   showIntro,
+  showHub,
   discussedCriticalities,
   suggestedCriticalities,
   stepsByCriticality,
@@ -94,24 +95,33 @@ export default function Present({
   prefiltered: boolean
   introSteps: Step[]
   showIntro: boolean
+  showHub: boolean
   discussedCriticalities: number[]
   suggestedCriticalities: number[]
   stepsByCriticality: Record<number, Step[]>
   capturedQuestions: CapturedQuestion[]
 }) {
   // When exactly one criticality is enabled the hub adds nothing, so we skip it and
-  // land straight in that criticality (a first step toward the planned "no hub" mode).
+  // land straight in that criticality.
   const singleCriticality =
     criticalities.length === 1 ? criticalities[0].id : null
   const playIntro = showIntro && introSteps.length > 0
 
-  // The intro plays first when enabled; otherwise go straight to the single
-  // criticality (if only one) or the hub.
+  // "Sequence mode": when the operator hides the hub, the enabled criticalities play
+  // back-to-back in the chosen order, and the hub is only reached after the last one.
+  // The starting point after the intro (or immediately, when there's no intro).
+  const firstCriticality =
+    !showHub && criticalities.length > 0
+      ? criticalities[0].id
+      : singleCriticality
+
+  // The intro plays first when enabled; otherwise go straight to the first
+  // criticality (sequence mode or a single enabled one) or the hub.
   const [view, setView] = useState<View>(
     playIntro
       ? { name: "intro" }
-      : singleCriticality !== null
-        ? { name: "flow", criticalityId: singleCriticality }
+      : firstCriticality !== null
+        ? { name: "flow", criticalityId: firstCriticality }
         : { name: "hub" },
   )
   const [discussed, setDiscussed] = useState<number[]>(discussedCriticalities)
@@ -132,31 +142,41 @@ export default function Present({
     void apiPatch(`/presale_sessions/${session.id}`, { status: "closed" })
   }, [session.id])
 
-  // Completing a flow consolidates the criticality as discussed (persisted) and
-  // returns to the hub, where it now renders as completed.
+  // Completing a flow consolidates the criticality as discussed (persisted). In
+  // sequence mode (hub hidden) it then starts the next enabled criticality in order,
+  // falling back to the hub once the last one is done; otherwise it returns to the
+  // hub, where the criticality now renders as completed.
   const completeFlow = useCallback(
     (id: number) => {
       const next = discussed.includes(id) ? discussed : [...discussed, id]
       setDiscussed(next)
-      setView({ name: "hub" })
+      const nextInSequence = !showHub
+        ? criticalities[criticalities.findIndex((c) => c.id === id) + 1]
+        : undefined
+      if (nextInSequence) {
+        setPosition({ stepIndex: 0, phaseIndex: 0 })
+        setView({ name: "flow", criticalityId: nextInSequence.id })
+      } else {
+        setView({ name: "hub" })
+      }
       void apiPatch(`/presale_sessions/${session.id}`, {
         discussed_criticalities: next,
       })
     },
-    [discussed, session.id],
+    [discussed, showHub, criticalities, session.id],
   )
 
   // Finishing the intro moves on (resetting the ephemeral position): straight into
-  // the single enabled criticality when there's only one, otherwise the hub. The
-  // intro never replays.
+  // the first criticality in sequence mode (or a single enabled one), otherwise the
+  // hub. The intro never replays.
   const enterHub = useCallback(() => {
     setPosition({ stepIndex: 0, phaseIndex: 0 })
     setView(
-      singleCriticality !== null
-        ? { name: "flow", criticalityId: singleCriticality }
+      firstCriticality !== null
+        ? { name: "flow", criticalityId: firstCriticality }
         : { name: "hub" },
     )
-  }, [singleCriticality])
+  }, [firstCriticality])
 
   // Advance: step through a step's phases, then to the next step, then end the
   // sequence. The intro and the flow share the step/phase math (advancePosition);
