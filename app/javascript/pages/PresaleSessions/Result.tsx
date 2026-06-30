@@ -22,12 +22,14 @@ export default function PresaleSessionResult({
   profileSteps,
   criticalities,
   suggested = [],
+  discussed = [],
 }: {
   session: SessionDetail
   segmentLabel: string | null
   profileSteps: ProfileStep[]
   criticalities: Criticality[]
   suggested?: number[]
+  discussed?: number[]
 }) {
   return (
     <>
@@ -86,6 +88,7 @@ export default function PresaleSessionResult({
             <ul className="mt-3 flex flex-col gap-2">
               {criticalities.map((c) => {
                 const isSuggested = suggested.includes(c.id)
+                const isDiscussed = discussed.includes(c.id)
                 return (
                   <li
                     key={c.id}
@@ -97,11 +100,12 @@ export default function PresaleSessionResult({
                     )}
                   >
                     <span>{c.label}</span>
-                    {isSuggested && (
-                      <Badge tone="accent" className="shrink-0">
-                        Indicata dal prospect
-                      </Badge>
-                    )}
+                    <span className="flex shrink-0 items-center gap-2">
+                      {isSuggested && (
+                        <Badge tone="accent">Indicata dal prospect</Badge>
+                      )}
+                      {isDiscussed && <Badge tone="muted">Discussa</Badge>}
+                    </span>
                   </li>
                 )
               })}
@@ -129,16 +133,18 @@ export default function PresaleSessionResult({
           <div className="flex items-center gap-3">
             <Button
               variant="secondary"
-              onClick={() => router.visit("/presale_sessions")}
-            >
-              Torna alle sessioni
-            </Button>
-            <Button
               onClick={() =>
                 router.visit(`/presale_sessions/${session.id}/present`)
               }
             >
-              Avvia presentazione
+              Riapri presentazione
+            </Button>
+            <Button
+              onClick={() =>
+                router.visit(`/presale_sessions/${session.id}/debrief`)
+              }
+            >
+              Vai al debrief
             </Button>
           </div>
         </div>

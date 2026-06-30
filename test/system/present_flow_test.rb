@@ -201,14 +201,47 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_nil questions.first["slide_id"]
   end
 
+  test "with a single enabled criticality the hub is skipped after the intro" do
+    @session.update!(selected_criticalities: [ 1 ])
+    visit present_presale_session_path(@session)
+
+    # Advancing through the intro lands straight in the single criticality's flow —
+    # the hub (and its prompt) is never shown.
+    10.times do
+      break if page.has_text?("Tempi disponibili da subito.", wait: 0.2)
+      press_key("ArrowRight")
+    end
+    assert_text "Tempi disponibili da subito."
+    assert_no_text "Dove fa più difficoltà la tua azienda?"
+  end
+
+  test "setup lists the segment criticalities and intro toggle, then proceeds" do
+    @session.update!(segment: "meccanica")
+    visit setup_presale_session_path(@session)
+
+    # The criticality list (segment-driven) and the intro toggle are present.
+    assert_text "Criticità da discutere"
+    assert_text "Tempi di produzione non raccolti"
+    assert_text "Mostra l'introduzione"
+    page.save_screenshot("tmp/screenshots/setup.png")
+
+    # Proceeding with the defaults (all enabled) persists the explicit selection.
+    react_click "Avanti"
+    assert_current_path profiling_presale_session_path(@session), wait: 5
+    assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], @session.reload.selected_criticalities.sort
+  end
+
   test "from the closing page the operator opens the debrief and sends the recap" do
     @session.update!(discussed_criticalities: [ 1 ])
     visit present_presale_session_path(@session)
     skip_intro
 
-    # Jump to the closing page (C), then hand over to the internal debrief.
+    # Jump to the closing page (C), go to the end-of-session summary, then hand
+    # over to the internal debrief from there.
     press_key("c")
     assert_text "Grazie"
+    react_click "Vai al riepilogo"
+    assert_text "Criticità rilevanti"
     react_click "Vai al debrief"
     assert_text "Debrief"
     page.save_screenshot("tmp/screenshots/debrief.png")

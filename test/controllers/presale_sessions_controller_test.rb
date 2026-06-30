@@ -385,4 +385,97 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :not_found
   end
+
+  # ----- Setup: criticality selection + intro toggle -----
+
+  test "setup defaults the criticality selection to the whole segment subset" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica")
+
+    get setup_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    # No suggestions and no explicit choice → every criticality of the segment.
+    assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], props["selectedCriticalities"].sort
+    assert_equal true, props["showIntro"]
+    assert_equal [], props["suggested"]
+    # The per-segment map lets the client re-render the list as the segment changes.
+    assert props["criticalitiesBySegment"].key?("meccanica")
+  end
+
+  test "setup defaults the selection to the prospect's suggestions when present" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", suggested_criticalities: [ 3, 7 ])
+
+    get setup_presale_session_path(session)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal [ 3, 7 ], props["selectedCriticalities"].sort
+    assert_equal [ 3, 7 ], props["suggested"]
+  end
+
+  test "setup honours an explicit selection, clamped to the segment" do
+    sign_in
+    session = presale_sessions(:one)
+    # 99 is not a meccanica criticality → dropped; the rest is kept.
+    session.update!(segment: "meccanica", selected_criticalities: [ 1, 7, 99 ])
+
+    get setup_presale_session_path(session)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal [ 1, 7 ], props["selectedCriticalities"].sort
+  end
+
+  test "present uses the operator's selected subset and the intro toggle" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      selected_criticalities: [ 2 ], show_intro: false)
+
+    get present_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal [ 2 ], props["criticalities"].map { |c| c["id"] }
+    assert_equal false, props["showIntro"]
+  end
+
+  test "result marks the discussed criticalities in the end summary" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      selected_criticalities: [ 1, 2 ], discussed_criticalities: [ 1 ])
+
+    get result_presale_session_path(session)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal [ 1, 2 ], props["criticalities"].map { |c| c["id"] }
+    assert_equal [ 1 ], props["discussed"]
+  end
+
+  test "update persists the selection and intro toggle via auto-save" do
+    sign_in
+    session = presale_sessions(:one)
+
+    patch presale_session_path(session),
+          params: { selected_criticalities: [ 3, 8 ], show_intro: false },
+          as: :json
+
+    assert_response :success
+    session.reload
+    assert_equal [ 3, 8 ], session.selected_criticalities
+    assert_equal false, session.show_intro
+  end
+
+  test "update accepts an explicit empty selection (operator disabled all)" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(selected_criticalities: [ 1, 2 ])
+
+    patch presale_session_path(session),
+          params: { selected_criticalities: [] },
+          as: :json
+
+    assert_response :success
+    assert_equal [], session.reload.selected_criticalities
+  end
 end

@@ -1,6 +1,7 @@
 // Fixed closing page, identical for every segment/profile — only the prospect's
 // company/contact names change. Reached from anywhere via the `C` shortcut. The
-// "Vai al debrief" button hands over to the internal debrief screen (Milestone 6).
+// "Vai al riepilogo" button hands over to the internal end-of-session summary
+// (the result screen), from which the operator opens the debrief.
 // Autonomous UI, raw Tailwind, Bravo tokens (bm-*). Figma veste (node 67-32):
 // slate stage, centred white title + body (Outfit), centred logo. Rendered inside
 // the shared 16:9 Stage; sizes use cqw so they scale with the stage.
@@ -11,12 +12,12 @@ export function Closing({
   companyName,
   contactName,
   onBack,
-  onDebrief,
+  onSummary,
 }: {
   companyName: string | null
   contactName: string | null
   onBack: () => void
-  onDebrief: () => void
+  onSummary: () => void
 }) {
   const company = companyName?.trim() || "la tua azienda"
   const contact = contactName?.trim()
@@ -35,11 +36,11 @@ export function Closing({
         <div className="mt-[4cqw] flex flex-col items-center gap-[1.4cqw]">
           <button
             type="button"
-            onClick={onDebrief}
+            onClick={onSummary}
             className="-skew-x-12 bg-bm-white px-[2.8cqw] py-[1cqw] transition-colors hover:bg-bm-white/90"
           >
             <span className="block skew-x-12 text-[1.5cqw] font-bold tracking-tight text-bm-slate">
-              Vai al debrief
+              Vai al riepilogo
             </span>
           </button>
           <button
