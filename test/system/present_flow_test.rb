@@ -157,7 +157,7 @@ class PresentFlowTest < ApplicationSystemTestCase
       )
     end
 
-    assert_selector "img[src*='C01-step1.png']", wait: 5
+    assert_selector "img[src*='C01-step1']", wait: 5
     arrow.call("ArrowRight")
     assert_selector "img[src*='C01-step2.png']", wait: 5
     arrow.call("ArrowRight")
@@ -170,7 +170,7 @@ class PresentFlowTest < ApplicationSystemTestCase
     arrow.call("ArrowLeft")
     assert_selector "img[src*='C01-step2.png']", wait: 5
     arrow.call("ArrowLeft")
-    assert_selector "img[src*='C01-step1.png']", wait: 5
+    assert_selector "img[src*='C01-step1']", wait: 5
   end
 
   test "the S shortcut leaves the presentation for the sessions list" do
@@ -229,6 +229,59 @@ class PresentFlowTest < ApplicationSystemTestCase
     react_click "Avanti"
     assert_current_path profiling_presale_session_path(@session), wait: 5
     assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], @session.reload.selected_criticalities.sort
+  end
+
+  test "setup shows drag handles, the hub toggle, and reorders persist on proceed" do
+    @session.update!(segment: "meccanica")
+    visit setup_presale_session_path(@session)
+
+    assert_text "Criticità da discutere"
+    assert_text "Tempi di produzione non raccolti"
+    # Both global toggles are present after the relabel + the new hub toggle.
+    assert_text "Mostra l'introduzione all'inizio"
+    assert_text "Mostra l'hub tra le criticità"
+    # Each row carries a drag handle (its own accessible button).
+    assert_selector "button[aria-label='Trascina per riordinare']", minimum: 2
+    page.save_screenshot("tmp/screenshots/setup-reorderable.png")
+  end
+
+  test "with the hub disabled the criticalities play in sequence in the chosen order" do
+    # Hub hidden, two criticalities enabled, ordered 2 then 1. After the intro the
+    # sequence should play C02 first, auto-advance into C01, then land on the hub.
+    @session.update!(
+      selected_criticalities: [ 1, 2 ],
+      criticalities_order: [ 2, 1 ],
+      show_hub: false
+    )
+    visit present_presale_session_path(@session)
+
+    # Advance through the intro; sequence mode lands straight in the first criticality
+    # (C02) — the hub prompt is not shown up front.
+    20.times do
+      break if page.has_selector?("img[src*='C02-step1']", wait: 0.2)
+      press_key("ArrowRight")
+    end
+    assert_selector "img[src*='C02-step1']", wait: 5
+    assert_no_text "Dove fa più difficoltà la tua azienda?"
+    page.save_screenshot("tmp/screenshots/present-sequence-c02.png")
+
+    # Completing C02 auto-starts the next in order, C01 — no hub in between.
+    20.times do
+      break if page.has_selector?("img[src*='C01-step1']", wait: 0.2)
+      press_key("ArrowRight")
+    end
+    assert_selector "img[src*='C01-step1']", wait: 5
+    assert_no_text "Dove fa più difficoltà la tua azienda?"
+
+    # Completing the last criticality finally returns to the hub.
+    20.times do
+      break if page.has_text?("Dove fa più difficoltà la tua azienda?", wait: 0.2)
+      press_key("ArrowRight")
+    end
+    assert_text "Dove fa più difficoltà la tua azienda?"
+
+    # Both criticalities were marked discussed during the sequence.
+    assert_equal [ 2, 1 ], @session.reload.discussed_criticalities
   end
 
   test "from the closing page the operator opens the debrief and sends the recap" do

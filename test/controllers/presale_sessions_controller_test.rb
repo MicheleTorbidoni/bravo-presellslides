@@ -478,4 +478,62 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal [], session.reload.selected_criticalities
   end
+
+  # ----- Setup: criticality ordering + hub toggle -----
+
+  test "setup defaults the criticality order to the segment's default order and shows the hub" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica")
+
+    get setup_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    default_order = ContentConfig.criticalities_for_segment(segment: "meccanica").map { |c| c[:id] }
+    assert_equal default_order, props["criticalitiesOrder"]
+    assert_equal true, props["showHub"]
+  end
+
+  test "setup honours a saved order, clamped to the segment and appending new ids" do
+    sign_in
+    session = presale_sessions(:one)
+    # 99 is not a meccanica criticality → dropped; the remaining segment ids that
+    # aren't in the saved order are appended in default order.
+    session.update!(segment: "meccanica", criticalities_order: [ 7, 1, 99 ])
+
+    get setup_presale_session_path(session)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    default_order = ContentConfig.criticalities_for_segment(segment: "meccanica").map { |c| c[:id] }
+    expected = [ 7, 1 ] + (default_order - [ 7, 1 ])
+    assert_equal expected, props["criticalitiesOrder"]
+  end
+
+  test "present orders the criticalities by the operator's saved order and hands over showHub" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      selected_criticalities: [ 1, 2, 3 ], criticalities_order: [ 3, 1, 2 ], show_hub: false)
+
+    get present_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal [ 3, 1, 2 ], props["criticalities"].map { |c| c["id"] }
+    assert_equal false, props["showHub"]
+  end
+
+  test "update persists the criticality order and hub toggle via auto-save" do
+    sign_in
+    session = presale_sessions(:one)
+
+    patch presale_session_path(session),
+          params: { criticalities_order: [ 3, 1, 2 ], show_hub: false },
+          as: :json
+
+    assert_response :success
+    session.reload
+    assert_equal [ 3, 1, 2 ], session.criticalities_order
+    assert_equal false, session.show_hub
+  end
 end
