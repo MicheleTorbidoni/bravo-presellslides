@@ -147,8 +147,10 @@ class ContentConfigTest < ActiveSupport::TestCase
 
     assert_equal %w[ Intro-step1 Intro-step2 Intro-step3 ], steps.map { |s| s[:id] }
     assert(steps.first[:phases].first.end_with?("/presentation_assets/intro/Intro-step1.png"))
-    # titles/body come from intro.json (text-per-step)
-    assert_equal "Benvenuto.", steps.first[:title]
+    # titles/body come from intro.json (text-per-step) — assert against the file so
+    # editing the intro copy doesn't break this wiring test.
+    intro_json = JSON.parse(Rails.root.join("content/config/intro.json").read)
+    assert_equal intro_json["steps"].first["title"], steps.first[:title]
   end
 
   test "parse_asset_name accepts the Intro code without breaking criticalities" do
