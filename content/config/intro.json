@@ -1,16 +1,16 @@
 {
   "steps": [
     {
-      "title": "Benvenuto.",
+      "title": "Scopriamo Bravo Manufacturing",
       "body": "Grazie {{contact_name}} per il tuo tempo: vediamo insieme come Bravo Manufacturing può aiutare {{company_name}}."
     },
     {
-      "title": "Come funziona oggi.",
-      "body": "Partiamo dalle sfide quotidiane della tua produzione."
+      "title": "Una piattaforma completa",
+      "body": "Sfide quotidiane, risultati tangibili."
     },
     {
-      "title": "Dove vogliamo arrivare.",
-      "body": null
+      "title": "Cosa esploriamo oggi?",
+      "body": "E cosa no."
     }
   ]
 }
