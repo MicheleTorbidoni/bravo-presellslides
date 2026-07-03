@@ -14,7 +14,7 @@ L'app è Rails 8 + React 19 + Inertia. La Fase 5 è costruita in **due milestone
 
 ### Cosa fa l'app (novità della Fase 5)
 
-- La Profilazione mostra, oltre alle 5 domande-criticità, **tutte le domande di qualificazione commerciale**, organizzate in **gruppi semantici** (Interlocutore, Azienda, Produzione & macchine, Gestione & software, Motivazione, Obiettivi, Criticità attuali, Miglioramenti, Aspettative, Conclusione).
+- La Profilazione mostra, oltre alle 5 domande-criticità, **tutte le domande di qualificazione commerciale**, organizzate in **gruppi semantici** (Interlocutore, Azienda, Produzione & macchine, Gestione & software, Motivazione, Obiettivi, Criticità attuali, Miglioramenti, Aspettative).
 - Le domande-criticità sono **interlacciate** nei gruppi pertinenti e rese **visivamente distinte** con una card a sfondo accent tenue; le domande extra hanno stile neutro.
 - Le domande extra usano **tipi di campo nuovi**: scelta multipla (checkbox), testo, numero intero, valuta, percentuale, sì/no, testo lungo.
 - Un **toggle "Mostra solo domande per le criticità"** in testa filtra la vista alle sole domande-criticità, per verificare cosa manca prima di procedere.
@@ -90,7 +90,7 @@ Aggiunge la logica di visibilità condizionale dei campi di dettaglio, l'auto-so
 - **Visibilità condizionale (`visible_if`)**: i campi di dettaglio compaiono solo quando la condizione è vera:
   - `contact_role_other` (testo) — solo se `contact_roles` contiene "Altro".
   - `subcontract_turnover_percentage` — solo se `does_subcontract_manufacturing` = sì.
-  - `production_management_software_name` — solo se `has_production_management_software` = sì.
+  - `production_management_software_name` — solo se la domanda-criticità `d3` = "MRP (o ERP)".
   - i campi `*_other_text` (testo lungo) — solo se la relativa scelta multipla contiene "Altro".
 - **Auto-somma "Totale persone"**: `total_people_count` si calcola come somma di operatori di produzione + ufficio tecnico + amministrazione + altre persone d'ufficio, e resta **correggibile a mano** (un override manuale non viene sovrascritto dai successivi cambi dei conteggi finché l'operatore non lo azzera).
 - **Validazioni leggere**: numeri interi ≥ 0, percentuali 0–100, valuta ≥ 0; feedback inline non bloccante coerente col design system.
@@ -132,8 +132,7 @@ Gruppi in ordine di visualizzazione. 🔶 = domanda-criticità (riferimento all'
 
 ### 4. Gestione & software
 - 🔶 **ref d3** — "La produzione è gestita con..."
-- **has_production_management_software** — "Utilizzate oggi un software per gestire la produzione?" — sì/no
-- **production_management_software_name** — "Quale software utilizzate?" — testo — *visible_if: `has_production_management_software` = sì* (M16)
+- **production_management_software_name** — "Quale software utilizzate?" — testo — *visible_if: `ref d3` = "MRP (o ERP)" (codice `mrp`)* (M16)
 - 🔶 **ref d4** — "Gestite le Distinte Base?"
 - 🔶 **ref d5** — "Che tipo di Distinta?"
 
@@ -155,7 +154,3 @@ Gruppi in ordine di visualizzazione. 🔶 = domanda-criticità (riferimento all'
 
 ### 9. Aspettative
 - **mes_expectations_text** — "Che cosa vi aspettate dall'implementazione di un software MES come Bravo Manufacturing?" — testo lungo
-
-### 10. Conclusione
-- **was_webinar_suggested** — "È stato suggerito il webinar?" — sì/no (default: no)
-- **sales_notes_text** — "Note del commerciale" — testo lungo

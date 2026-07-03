@@ -99,6 +99,49 @@ class ContentConfigTest < ActiveSupport::TestCase
     end
   end
 
+  test "total_people_count declares an autosum over the four count fields" do
+    total = ContentConfig.questionnaire[:groups]
+      .flat_map { |g| g[:items] }
+      .find { |i| i[:field] == "total_people_count" }
+
+    assert total, "total_people_count field is missing"
+    assert_equal(
+      %w[
+        production_operators_count
+        technical_office_people_count
+        administrative_people_count
+        other_office_people_count
+      ],
+      total[:autosum],
+    )
+  end
+
+  test "every questionnaire visible_if references a real field or decision-tree ref" do
+    tree = ContentConfig.decision_tree
+    fields = ContentConfig.questionnaire[:groups].flat_map { |g| g[:items] }
+    known = fields.filter_map { |i| i[:field] }
+
+    fields.filter_map { |i| i[:visible_if] }.each do |cond|
+      if cond[:ref]
+        assert tree[:questions].key?(cond[:ref].to_sym), "visible_if ref #{cond[:ref]} unknown"
+        answer_codes = tree.dig(:questions, cond[:ref].to_sym, :answers).map { |a| a[:code] }
+        assert_includes answer_codes, cond[:equals], "visible_if ref value #{cond[:equals]} is not an answer of #{cond[:ref]}"
+      else
+        assert_includes known, cond[:field], "visible_if points to unknown field #{cond[:field]}"
+      end
+      assert(cond.key?(:includes) || cond.key?(:equals), "visible_if needs includes or equals")
+    end
+  end
+
+  test "the software-name field is gated on the decision-tree d3=mrp answer" do
+    software = ContentConfig.questionnaire[:groups]
+      .flat_map { |g| g[:items] }
+      .find { |i| i[:field] == "production_management_software_name" }
+
+    assert software
+    assert_equal({ ref: "d3", equals: "mrp" }, software[:visible_if])
+  end
+
   test "questionnaire_field_keys splits multi_select from scalar and excludes refs" do
     keys = ContentConfig.questionnaire_field_keys
 

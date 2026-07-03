@@ -36,7 +36,17 @@
         { "field": "technical_office_people_count", "label": "Persone nell'ufficio tecnico", "type": "integer" },
         { "field": "administrative_people_count", "label": "Persone in amministrazione", "type": "integer" },
         { "field": "other_office_people_count", "label": "Altre persone d'ufficio", "type": "integer" },
-        { "field": "total_people_count", "label": "Totale persone", "type": "integer" },
+        {
+          "field": "total_people_count",
+          "label": "Totale persone",
+          "type": "integer",
+          "autosum": [
+            "production_operators_count",
+            "technical_office_people_count",
+            "administrative_people_count",
+            "other_office_people_count"
+          ]
+        },
         { "field": "annual_turnover_amount", "label": "Fatturato annuo", "type": "currency" },
         { "field": "does_subcontract_manufacturing", "label": "Svolgete lavorazioni conto terzi?", "type": "boolean" },
         {
@@ -59,12 +69,11 @@
       "title": "Gestione & software",
       "items": [
         { "ref": "d3" },
-        { "field": "has_production_management_software", "label": "Utilizzate oggi un software per gestire la produzione?", "type": "boolean" },
         {
           "field": "production_management_software_name",
           "label": "Quale software utilizzate?",
           "type": "text",
-          "visible_if": { "field": "has_production_management_software", "equals": true }
+          "visible_if": { "ref": "d3", "equals": "mrp" }
         },
         { "ref": "d4" },
         { "ref": "d5" }
@@ -185,13 +194,6 @@
           "label": "Che cosa vi aspettate dall'implementazione di un software MES come Bravo Manufacturing?",
           "type": "textarea"
         }
-      ]
-    },
-    {
-      "title": "Conclusione",
-      "items": [
-        { "field": "was_webinar_suggested", "label": "È stato suggerito il webinar?", "type": "boolean" },
-        { "field": "sales_notes_text", "label": "Note del commerciale", "type": "textarea" }
       ]
     }
   ]
