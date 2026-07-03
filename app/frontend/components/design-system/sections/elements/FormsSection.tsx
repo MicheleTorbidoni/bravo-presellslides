@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Radio, RadioGroup } from "@/components/ui/radio";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { RichTextField } from "@/components/ui/rich-text-field";
 
 const code = `import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Radio, RadioGroup } from "@/components/ui/radio";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { RichTextField } from "@/components/ui/rich-text-field";
 
 <form className="space-y-4">
@@ -60,6 +62,12 @@ import { RichTextField } from "@/components/ui/rich-text-field";
     </span>
   </label>
 
+  {/* Plain multi-line text */}
+  <div className="space-y-2">
+    <label htmlFor="notes">Notes</label>
+    <Textarea id="notes" rows={3} placeholder="Anything else we should know…" />
+  </div>
+
   {/* Rich text (milkdown) */}
   <div className="space-y-2">
     <label htmlFor="bio">Bio</label>
@@ -78,6 +86,7 @@ export function FormsSection() {
         <>
           Forms compose <code>&lt;Input&gt;</code>, <code>&lt;Select&gt;</code>,
           <code>&lt;Checkbox&gt;</code>, <code>&lt;Radio&gt;</code>,{" "}
+          <code>&lt;Textarea&gt;</code>,{" "}
           <code>&lt;RichTextField&gt;</code> (milkdown), native HTML labels,
           helper text, and <code>&lt;Button&gt;</code>. Vertical spacing between
           fields uses <code>space-y-4</code>; spacing inside a field uses{" "}
@@ -161,6 +170,15 @@ export function FormsSection() {
           </label>
 
           <div className="space-y-2">
+            <label htmlFor="ds-form-notes">Notes</label>
+            <Textarea
+              id="ds-form-notes"
+              rows={3}
+              placeholder="Anything else we should know…"
+            />
+          </div>
+
+          <div className="space-y-2">
             <label htmlFor="ds-form-bio">Bio</label>
             <RichTextField placeholder="Tell us about yourself…" />
           </div>
@@ -176,6 +194,7 @@ export function FormsSection() {
           <li>Error states: render a <code>text-xs text-danger-display</code> message in the same slot as helper text and add <code>aria-invalid</code> to the field.</li>
           <li>Radio groups: wrap in <code>&lt;fieldset&gt;</code> + <code>&lt;legend&gt;</code> and share a <code>name</code> across all <code>&lt;Radio&gt;</code> inputs.</li>
           <li>Selects: use a disabled empty <code>&lt;option&gt;</code> as a placeholder when no default makes sense.</li>
+          <li>Plain multi-line text: <code>&lt;Textarea&gt;</code> reuses the <code>form-control</code> base plus <code>form-control-textarea</code> (auto-height, min 6rem). Use it for notes and free-form answers; reach for <code>&lt;RichTextField&gt;</code> only when you need formatting.</li>
           <li>Rich text: <code>&lt;RichTextField&gt;</code> wraps milkdown's Crepe — emits markdown via <code>onChange</code>. Requires <code>@milkdown/crepe</code>.</li>
         </ul>
       }

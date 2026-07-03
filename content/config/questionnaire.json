@@ -1,0 +1,198 @@
+{
+  "groups": [
+    {
+      "title": "Interlocutore",
+      "items": [
+        {
+          "field": "contact_roles",
+          "label": "Di cosa si occupa in azienda?",
+          "type": "multi_select",
+          "options": [
+            "Titolare / Amministratore",
+            "Socio",
+            "Responsabile Commessa",
+            "Responsabile Produzione",
+            "Direttore di Stabilimento",
+            "Responsabile Amministrativo",
+            "Responsabile IT",
+            "Responsabile Acquisti",
+            "Consulente",
+            "Impiegato/a",
+            "Altro"
+          ]
+        },
+        {
+          "field": "contact_role_other",
+          "label": "Specifica",
+          "type": "text",
+          "visible_if": { "field": "contact_roles", "includes": "Altro" }
+        }
+      ]
+    },
+    {
+      "title": "Azienda",
+      "items": [
+        { "field": "production_operators_count", "label": "Operatori di produzione", "type": "integer" },
+        { "field": "technical_office_people_count", "label": "Persone nell'ufficio tecnico", "type": "integer" },
+        { "field": "administrative_people_count", "label": "Persone in amministrazione", "type": "integer" },
+        { "field": "other_office_people_count", "label": "Altre persone d'ufficio", "type": "integer" },
+        { "field": "total_people_count", "label": "Totale persone", "type": "integer" },
+        { "field": "annual_turnover_amount", "label": "Fatturato annuo", "type": "currency" },
+        { "field": "does_subcontract_manufacturing", "label": "Svolgete lavorazioni conto terzi?", "type": "boolean" },
+        {
+          "field": "subcontract_turnover_percentage",
+          "label": "Quanto incidono sul fatturato?",
+          "type": "percentage",
+          "visible_if": { "field": "does_subcontract_manufacturing", "equals": true }
+        },
+        { "field": "does_outsource_work", "label": "Affidate alcune lavorazioni in outsourcing?", "type": "boolean" }
+      ]
+    },
+    {
+      "title": "Produzione & macchine",
+      "items": [
+        { "ref": "d1" },
+        { "ref": "d2" }
+      ]
+    },
+    {
+      "title": "Gestione & software",
+      "items": [
+        { "ref": "d3" },
+        { "field": "has_production_management_software", "label": "Utilizzate oggi un software per gestire la produzione?", "type": "boolean" },
+        {
+          "field": "production_management_software_name",
+          "label": "Quale software utilizzate?",
+          "type": "text",
+          "visible_if": { "field": "has_production_management_software", "equals": true }
+        },
+        { "ref": "d4" },
+        { "ref": "d5" }
+      ]
+    },
+    {
+      "title": "Motivazione del contatto",
+      "items": [
+        {
+          "field": "contact_reason_categories",
+          "label": "Qual è il motivo principale che vi ha portato a contattarci?",
+          "type": "multi_select",
+          "options": [
+            "Eliminare la carta",
+            "Automatizzare i processi",
+            "Digitalizzare la produzione",
+            "Abbandonare Excel",
+            "Non disponiamo di un sistema MES",
+            "Migliorare il controllo di commessa",
+            "Tracciare tempi uomo",
+            "Tracciare tempi macchina",
+            "Conoscere l'avanzamento della produzione",
+            "Interconnettere le macchine / Industria 4.0 / IoT",
+            "L'attuale fornitore software non soddisfa le esigenze produttive",
+            "Altro"
+          ]
+        },
+        {
+          "field": "contact_reason_other_text",
+          "label": "Specifica",
+          "type": "textarea",
+          "visible_if": { "field": "contact_reason_categories", "includes": "Altro" }
+        }
+      ]
+    },
+    {
+      "title": "Obiettivi di business",
+      "items": [
+        {
+          "field": "business_goal_categories",
+          "label": "Quali risultati vorreste ottenere?",
+          "type": "multi_select",
+          "options": [
+            "Recuperare efficienza",
+            "Ridurre i tempi di produzione",
+            "Ridurre i fermi macchina",
+            "Ridurre gli sprechi",
+            "Ridurre i costi di produzione",
+            "Ridurre gli scarti",
+            "Ottenere dati affidabili",
+            "Monitorare l'avanzamento della produzione in tempo reale",
+            "Altro"
+          ]
+        },
+        {
+          "field": "business_goal_other_text",
+          "label": "Specifica",
+          "type": "textarea",
+          "visible_if": { "field": "business_goal_categories", "includes": "Altro" }
+        }
+      ]
+    },
+    {
+      "title": "Criticità attuali",
+      "items": [
+        {
+          "field": "current_issue_categories",
+          "label": "Quali di queste problematiche riscontrate oggi?",
+          "type": "multi_select",
+          "options": [
+            "La gestione delle commesse è manuale",
+            "Non disponiamo di dati affidabili",
+            "Non conosciamo lo stato delle commesse",
+            "Non conosciamo le date di consegna",
+            "Le informazioni dipendono dall'esperienza delle persone",
+            "Non conosciamo i costi di produzione",
+            "Altro"
+          ]
+        },
+        {
+          "field": "current_issue_other_text",
+          "label": "Specifica",
+          "type": "textarea",
+          "visible_if": { "field": "current_issue_categories", "includes": "Altro" }
+        }
+      ]
+    },
+    {
+      "title": "Miglioramenti desiderati",
+      "items": [
+        {
+          "field": "desired_improvement_categories",
+          "label": "Che cosa vorreste migliorare?",
+          "type": "multi_select",
+          "options": [
+            "Digitalizzare i processi",
+            "Automatizzare la raccolta dati",
+            "Pianificare meglio la produzione",
+            "Conoscere il carico di lavoro di macchine e operatori",
+            "Conoscere i costi di produzione",
+            "Ridurre gli scarti",
+            "Altro"
+          ]
+        },
+        {
+          "field": "desired_improvement_other_text",
+          "label": "Specifica",
+          "type": "textarea",
+          "visible_if": { "field": "desired_improvement_categories", "includes": "Altro" }
+        }
+      ]
+    },
+    {
+      "title": "Aspettative",
+      "items": [
+        {
+          "field": "mes_expectations_text",
+          "label": "Che cosa vi aspettate dall'implementazione di un software MES come Bravo Manufacturing?",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "title": "Conclusione",
+      "items": [
+        { "field": "was_webinar_suggested", "label": "È stato suggerito il webinar?", "type": "boolean" },
+        { "field": "sales_notes_text", "label": "Note del commerciale", "type": "textarea" }
+      ]
+    }
+  ]
+}

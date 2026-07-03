@@ -271,6 +271,43 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "q_abc123", stored.first["id"]
   end
 
+  test "update persists qualification answers (scalars and multi-select arrays)" do
+    sign_in
+    session = presale_sessions(:one)
+
+    patch presale_session_path(session),
+          params: {
+            qualification_answers: {
+              contact_roles: [ "Titolare / Amministratore", "Consulente" ],
+              annual_turnover_amount: 1_500_000,
+              does_subcontract_manufacturing: true,
+              sales_notes_text: "Interessati, ricontattare a settembre."
+            }
+          },
+          as: :json
+
+    assert_response :success
+    stored = session.reload.qualification_answers
+    assert_equal [ "Titolare / Amministratore", "Consulente" ], stored["contact_roles"]
+    assert_equal 1_500_000, stored["annual_turnover_amount"]
+    assert_equal true, stored["does_subcontract_manufacturing"]
+    assert_equal "Interessati, ricontattare a settembre.", stored["sales_notes_text"]
+  end
+
+  test "update ignores unknown qualification-answer keys" do
+    sign_in
+    session = presale_sessions(:one)
+
+    patch presale_session_path(session),
+          params: { qualification_answers: { not_a_real_field: "x", contact_role_other: "Stagista" } },
+          as: :json
+
+    assert_response :success
+    stored = session.reload.qualification_answers
+    assert_equal "Stagista", stored["contact_role_other"]
+    assert_not stored.key?("not_a_real_field")
+  end
+
   test "present requires authentication" do
     session = presale_sessions(:one)
 
