@@ -20,6 +20,9 @@ export type FieldValue = string | number | boolean | string[] | null | undefined
 export type VisibleIf =
   | { field: string; includes: string }
   | { field: string; equals: boolean }
+  // References a decision-tree question by its ref id; true when that question's
+  // selected answer code equals the given value (e.g. d3 === "mrp").
+  | { ref: string; equals: string }
 
 export type FieldDef = {
   field: string
@@ -27,6 +30,23 @@ export type FieldDef = {
   type: FieldType
   options?: string[]
   visible_if?: VisibleIf
+  // When present, this field is the sum of the listed count fields (see the
+  // autosum handling in Profiling.tsx). Only "total_people_count" uses it.
+  autosum?: string[]
+}
+
+// Light, non-blocking validation for numeric fields: integers/currency must be
+// >= 0, percentages within 0–100. Returns a message to show inline, or null.
+function numericError(def: FieldDef, value: FieldValue): string | null {
+  if (typeof value !== "number") return null
+  if (def.type === "percentage") {
+    if (value < 0 || value > 100) return "Inserisci un valore tra 0 e 100."
+  } else if (def.type === "integer" || def.type === "currency") {
+    if (value < 0) return "Inserisci un valore maggiore o uguale a 0."
+    if (def.type === "integer" && !Number.isInteger(value))
+      return "Inserisci un numero intero."
+  }
+  return null
 }
 
 // Renders a single sales-qualification field (an "extra" question — not part of the
@@ -136,11 +156,18 @@ export function ExtraField({
     onChange(Number.isNaN(parsed) ? null : parsed)
   }
 
+  const error = numericError(def, value)
+
   const control = (
     <Input
       id={id}
       type={isNumber ? "number" : "text"}
       inputMode={isNumber ? "decimal" : undefined}
+      min={isNumber ? 0 : undefined}
+      max={def.type === "percentage" ? 100 : undefined}
+      step={def.type === "integer" ? 1 : undefined}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={error ? `${id}-error` : undefined}
       value={stringValue}
       onChange={(e) => handleChange(e.target.value)}
       className={
@@ -172,6 +199,11 @@ export function ExtraField({
         </div>
       ) : (
         control
+      )}
+      {error && (
+        <p id={`${id}-error`} className="text-xs text-danger-display">
+          {error}
+        </p>
       )}
     </div>
   )

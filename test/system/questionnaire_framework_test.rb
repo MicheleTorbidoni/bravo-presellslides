@@ -63,7 +63,7 @@ class QuestionnaireFrameworkTest < ApplicationSystemTestCase
 
     # Fill some extra fields (various types).
     react_fill "qf-annual_turnover_amount", "1500000"
-    react_fill "qf-sales_notes_text", "Ricontattare a settembre."
+    react_fill "qf-mes_expectations_text", "Ricontattare a settembre."
     answer "outsourcing", "Sì"                           # boolean field
     within find("fieldset", text: "Di cosa si occupa") do
       page.execute_script(
@@ -84,7 +84,7 @@ class QuestionnaireFrameworkTest < ApplicationSystemTestCase
     sleep 0.6
     stored = @session.reload.qualification_answers
     assert_equal 1_500_000, stored["annual_turnover_amount"]
-    assert_equal "Ricontattare a settembre.", stored["sales_notes_text"]
+    assert_equal "Ricontattare a settembre.", stored["mes_expectations_text"]
     assert_equal true, stored["does_outsource_work"]
     assert_equal [ "Consulente" ], stored["contact_roles"]
     assert_equal "ho-excel-bom-bom1", @session.operational_profile

@@ -31,6 +31,51 @@ function isRef(item: QuestionnaireItem): item is RefItem {
   return "ref" in item
 }
 
+// Evaluates a field's visibility condition. A condition can reference another extra
+// field (`field`) or a decision-tree question by its ref id (`ref`, matched against
+// the selected answer code). Fields without a condition, and the decision-tree refs
+// themselves, are always visible. A value already entered in a field that later
+// becomes hidden is kept (not cleared) — it reappears if the condition becomes true
+// again.
+function isVisible(def: FieldDef, qual: Qual, answers: Answers): boolean {
+  const cond = def.visible_if
+  if (!cond) return true
+  if ("ref" in cond) return answers[cond.ref] === cond.equals
+  const current = qual[cond.field]
+  if ("includes" in cond) {
+    return Array.isArray(current) && current.includes(cond.includes)
+  }
+  return current === cond.equals
+}
+
+// Finds the single autosum field (a total that is the sum of listed count fields).
+function findAutosum(
+  questionnaire: Questionnaire,
+): { field: string; sources: string[] } | null {
+  for (const group of questionnaire.groups) {
+    for (const item of group.items) {
+      if (!isRef(item) && item.autosum && item.autosum.length > 0) {
+        return { field: item.field, sources: item.autosum }
+      }
+    }
+  }
+  return null
+}
+
+function sumOf(qual: Qual, sources: string[]): number {
+  return sources.reduce(
+    (acc, f) => acc + (typeof qual[f] === "number" ? (qual[f] as number) : 0),
+    0,
+  )
+}
+
+function anyFilled(qual: Qual, sources: string[]): boolean {
+  return sources.some((f) => {
+    const v = qual[f]
+    return v != null && v !== ""
+  })
+}
+
 // Which questions are reachable — and therefore answerable — given the current
 // answers. Walk from the start node: for an answered question follow only the
 // chosen branch, for an unanswered one keep every branch open (so downstream
@@ -113,6 +158,18 @@ export default function PresaleSessionProfiling({
   const [onlyCriticality, setOnlyCriticality] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  // "Totale persone" auto-sums the count fields, but a manual value wins until it's
+  // cleared. Seed the override flag from the saved data: a saved total that differs
+  // from the sum was entered by hand.
+  const autosum = useMemo(() => findAutosum(questionnaire), [questionnaire])
+  const [totalOverridden, setTotalOverridden] = useState<boolean>(() => {
+    if (!autosum) return false
+    const initial = qualificationAnswers ?? {}
+    const total = initial[autosum.field]
+    if (total == null || total === "") return false
+    return total !== sumOf(initial, autosum.sources)
+  })
+
   const enabled = useMemo(() => enabledIds(tree, answers), [tree, answers])
   const { codes, complete } = useMemo(() => walkProfile(tree, answers), [tree, answers])
   const profile = codes.join("-")
@@ -134,6 +191,24 @@ export default function PresaleSessionProfiling({
     }, 400)
     return () => clearTimeout(timer)
   }, [session.id, profile, qual])
+
+  // Keep the auto-sum total in step with the count fields, unless the operator has
+  // typed their own total. Recomputing from `prev` (not the closed-over qual) keeps
+  // it fresh; the equality guard avoids redundant writes and re-render loops.
+  const sourcesSig = autosum
+    ? autosum.sources.map((f) => qual[f] ?? "").join("|")
+    : ""
+  useEffect(() => {
+    if (!autosum || totalOverridden) return
+    setQual((prev) => {
+      const next = anyFilled(prev, autosum.sources)
+        ? sumOf(prev, autosum.sources)
+        : null
+      // Treat undefined/null as equal so an empty total isn't written as a null key.
+      const cur = prev[autosum.field] ?? null
+      return cur === next ? prev : { ...prev, [autosum.field]: next }
+    })
+  }, [autosum, totalOverridden, sourcesSig])
 
   function selectCriticality(questionId: string, code: string) {
     setAnswers((prev) => ({ ...prev, [questionId]: code }))
@@ -241,9 +316,9 @@ export default function PresaleSessionProfiling({
 
           <div className="mt-6 space-y-10">
             {questionnaire.groups.map((group) => {
-              const items = onlyCriticality
-                ? group.items.filter(isRef)
-                : group.items
+              const items = (
+                onlyCriticality ? group.items.filter(isRef) : group.items
+              ).filter((item) => isRef(item) || isVisible(item, qual, answers))
               if (items.length === 0) return null
               return (
                 <section key={group.title}>
@@ -260,7 +335,14 @@ export default function PresaleSessionProfiling({
                           <ExtraField
                             def={item}
                             value={qual[item.field]}
-                            onChange={(v) => setQualValue(item.field, v)}
+                            onChange={
+                              autosum && item.field === autosum.field
+                                ? (v) => {
+                                    setTotalOverridden(v != null && v !== "")
+                                    setQualValue(item.field, v)
+                                  }
+                                : (v) => setQualValue(item.field, v)
+                            }
                           />
                         </div>
                       ),
