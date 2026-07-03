@@ -32,6 +32,7 @@ class PresaleSessionsController < ApplicationController
       criticalitiesBySegment: ContentConfig.segments.to_h { |s| [ s[:id], ContentConfig.criticalities_for_segment(segment: s[:id]) ] },
       selectedCriticalities: effective_selected_ids(@session),
       criticalitiesOrder: effective_criticalities_order(@session),
+      extraCriticalities: @session.extra_criticalities,
       suggested: @session.suggested_criticalities,
       showIntro: @session.show_intro,
       showHub: @session.show_hub
@@ -153,29 +154,44 @@ class PresaleSessionsController < ApplicationController
       @session = Current.user.presale_sessions.find(params[:id])
     end
 
+    # Maps each extra criticality's id to the segment it was borrowed from, so the
+    # slides/video/badge resolve against the origin segment rather than the session's.
+    def extra_segment_by_id(session)
+      Array(session.extra_criticalities).to_h { |e| [ e["id"].to_i, e["segment"] ] }
+    end
+
+    # The ids a session may discuss: its segment subset plus the manually-added
+    # extras from other segments, in canonical order (segment first, then extras not
+    # already in the segment). Extras only exist once the operator adds them, so an
+    # unstarted session collapses to the plain segment subset.
+    def allowed_ids(session)
+      segment_ids = ContentConfig.criticalities_for_segment(segment: session.segment).map { |c| c[:id] }
+      segment_ids + (extra_segment_by_id(session).keys - segment_ids)
+    end
+
     # The criticalities the session will actually discuss, as ids in no particular
     # order. Single source of truth for setup/present/result. nil selection means
     # the operator never chose, so we default: the prospect's suggestions (if any,
     # intersected with the segment) else the whole segment subset. An explicit
-    # selection (including []) is honoured, but always clamped to the segment so a
-    # later segment change can't leave stale ids behind.
+    # selection (including []) is honoured, but always clamped to the allowed ids
+    # (segment ∪ extras) so a later segment change can't leave stale ids behind.
     def effective_selected_ids(session)
       segment_ids = ContentConfig.criticalities_for_segment(segment: session.segment).map { |c| c[:id] }
-      return session.selected_criticalities & segment_ids unless session.selected_criticalities.nil?
+      return session.selected_criticalities & allowed_ids(session) unless session.selected_criticalities.nil?
 
       suggested = session.suggested_criticalities & segment_ids
       suggested.presence || segment_ids
     end
 
-    # The full, ordered list of the segment's criticality ids (enabled and disabled),
+    # The full, ordered list of the session's criticality ids (enabled and disabled),
     # used to drive both the setup list order and the presentation sequence. The saved
-    # order is honoured but clamped to the current segment; any segment ids not yet in
-    # the saved order (new content, or a never-reordered session) are appended in the
-    # segment's default order.
+    # order is honoured but clamped to the allowed ids (segment ∪ extras); any allowed
+    # id not yet in the saved order (new content, added extra, or a never-reordered
+    # session) is appended in canonical order.
     def effective_criticalities_order(session)
-      segment_ids = ContentConfig.criticalities_for_segment(segment: session.segment).map { |c| c[:id] }
-      saved = (session.criticalities_order || []) & segment_ids
-      saved + (segment_ids - saved)
+      allowed = allowed_ids(session)
+      saved = (session.criticalities_order || []) & allowed
+      saved + (allowed - saved)
     end
 
     def session_summary(session)
@@ -222,12 +238,16 @@ class PresaleSessionsController < ApplicationController
     # override > shared default) — see ContentConfig.steps_for. Steps with no
     # bitmap simply have no phase URLs and the player shows a placeholder.
     def steps_by_criticality(session)
+      extra_by_id = extra_segment_by_id(session)
       ContentConfig.criticalities.to_h do |c|
         [
           c[:id],
           ContentConfig.steps_for(
             criticality_id: c[:id],
-            segment: session.segment,
+            # Extras resolve against their origin segment; everything else against
+            # the session's segment. The operational profile stays the session's
+            # (decision-tree tokens are global — no per-origin-segment profiling).
+            segment: extra_by_id[c[:id]] || session.segment,
             operational_profile: session.operational_profile
           )
         ]
@@ -286,6 +306,7 @@ class PresaleSessionsController < ApplicationController
         selected_criticalities: [],
         criticalities_order: [],
         discussed_criticalities: [],
+        extra_criticalities: [ [ :id, :segment ] ],
         captured_questions: [ :id, :text, :criticality_id, :slide_id, :asked_at ]
       )
     end

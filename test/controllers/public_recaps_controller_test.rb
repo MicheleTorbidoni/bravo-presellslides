@@ -33,6 +33,42 @@ class PublicRecapsControllerTest < ActionDispatch::IntegrationTest
     assert_includes discussed["embed_url"], "youtube-nocookie.com/embed/"
   end
 
+  test "a discussed extra criticality appears in the recap, resolved on its origin segment" do
+    # meccanica's subset is [1,2,3,4,7,8,10]; 9 is an elettronica criticality added
+    # as an extra and discussed during the call.
+    session = users(:one).presale_sessions.create!(
+      company_name: "Acme", segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      discussed_criticalities: [ 1, 9 ],
+      extra_criticalities: [ { id: 9, segment: "elettronica" } ]
+    )
+    session.ensure_public_token!
+
+    get public_recap_path(token: session.public_token)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    extra = props["criticalities"].find { |c| c["id"] == 9 }
+    assert extra, "the discussed extra should be present in the recap subset"
+    assert extra["discussed"]
+    # Its deep-dive video is resolved on the origin segment (elettronica), not meccanica.
+    assert_equal ContentConfig.video_url_for(
+      criticality_id: 9, segment: "elettronica", operational_profile: "ho-excel-bom-bom1"
+    ), extra["video_url"]
+  end
+
+  test "an extra criticality that was not discussed does not appear in the recap" do
+    session = users(:one).presale_sessions.create!(
+      company_name: "Acme", segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      discussed_criticalities: [ 1 ],
+      extra_criticalities: [ { id: 9, segment: "elettronica" } ]
+    )
+    session.ensure_public_token!
+
+    get public_recap_path(token: session.public_token)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_nil props["criticalities"].find { |c| c["id"] == 9 }
+  end
+
   test "returns not found for an unknown token" do
     get public_recap_path(token: "does-not-exist")
     assert_response :not_found
