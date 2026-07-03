@@ -536,4 +536,89 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ 3, 1, 2 ], session.criticalities_order
     assert_equal false, session.show_hub
   end
+
+  # ----- Setup: extra criticalities borrowed from other segments (M14) -----
+  # meccanica = [1,2,3,4,7,8,10]; criticality 9 is elettronica's, not meccanica's.
+
+  test "setup exposes the session's extra criticalities" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica",
+      extra_criticalities: [ { id: 9, segment: "elettronica" } ])
+
+    get setup_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal [ { "id" => 9, "segment" => "elettronica" } ], props["extraCriticalities"]
+  end
+
+  test "setup keeps an out-of-segment id when it is a registered extra" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica",
+      selected_criticalities: [ 1, 9 ], criticalities_order: [ 9, 1 ],
+      extra_criticalities: [ { id: 9, segment: "elettronica" } ])
+
+    get setup_presale_session_path(session)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    # The extra (9) is not in meccanica's subset but survives because it's registered.
+    assert_includes props["selectedCriticalities"], 9
+    assert_equal 9, props["criticalitiesOrder"].first
+  end
+
+  test "setup drops an out-of-segment id that is not a registered extra" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", selected_criticalities: [ 1, 9 ])
+
+    get setup_presale_session_path(session)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    # 9 is not a meccanica criticality and not registered as an extra → clamped away.
+    refute_includes props["selectedCriticalities"], 9
+    refute_includes props["criticalitiesOrder"], 9
+  end
+
+  test "present includes the extra criticality in the ordered subset" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      selected_criticalities: [ 1, 9 ], criticalities_order: [ 9, 1 ],
+      extra_criticalities: [ { id: 9, segment: "elettronica" } ])
+
+    get present_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal [ 9, 1 ], props["criticalities"].map { |c| c["id"] }
+  end
+
+  test "present resolves an extra's slides against its origin segment" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      selected_criticalities: [ 1, 9 ],
+      extra_criticalities: [ { id: 9, segment: "elettronica" } ])
+
+    get present_presale_session_path(session)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    # Criticality 9's slides resolve on elettronica (its origin), not on meccanica.
+    first_phase = props.dig("stepsByCriticality", "9", 0, "phases").first
+    assert_includes first_phase, "/elettronica/"
+    refute_includes first_phase, "/meccanica/"
+    # A regular meccanica criticality still resolves against the session segment.
+    assert_includes props.dig("stepsByCriticality", "1", 0, "phases").first, "/meccanica/"
+  end
+
+  test "update persists extra criticalities via the auto-save endpoint" do
+    sign_in
+    session = presale_sessions(:one)
+
+    patch presale_session_path(session),
+          params: { extra_criticalities: [ { id: 9, segment: "elettronica" } ] },
+          as: :json
+
+    assert_response :success
+    assert_equal [ { "id" => 9, "segment" => "elettronica" } ],
+      session.reload.extra_criticalities
+  end
 end

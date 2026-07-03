@@ -60,19 +60,44 @@ class PublicRecapsController < ApplicationController
       relevant = ContentConfig.criticalities if relevant.empty?
       discussed = session.discussed_criticalities
 
-      relevant.map do |c|
-        video_url = ContentConfig.video_url_for(
-          criticality_id: c[:id],
-          segment: session.segment,
-          operational_profile: session.operational_profile
-        )
-        {
-          id: c[:id],
-          label: c[:label],
-          discussed: discussed.include?(c[:id]),
-          video_url: video_url,
-          embed_url: VideoEmbed.url(video_url)
-        }
+      subset = relevant.map do |c|
+        recap_criticality(c, discussed: discussed, segment: session.segment,
+          operational_profile: session.operational_profile)
       end
+
+      subset + extra_recap_criticalities(session, discussed: discussed, present_ids: relevant.map { |c| c[:id] })
+    end
+
+    # Discussed criticalities borrowed from other segments (M14). Appended to the
+    # subset, deduped against it, with the deep-dive video resolved on the criticality's
+    # origin segment. Only discussed extras surface — the recap highlights those.
+    def extra_recap_criticalities(session, discussed:, present_ids:)
+      by_id = ContentConfig.criticalities.index_by { |c| c[:id] }
+
+      Array(session.extra_criticalities).filter_map do |e|
+        id = e["id"].to_i
+        next unless discussed.include?(id) && present_ids.exclude?(id)
+
+        crit = by_id[id]
+        next unless crit
+
+        recap_criticality(crit, discussed: discussed, segment: e["segment"],
+          operational_profile: session.operational_profile)
+      end
+    end
+
+    def recap_criticality(crit, discussed:, segment:, operational_profile:)
+      video_url = ContentConfig.video_url_for(
+        criticality_id: crit[:id],
+        segment: segment,
+        operational_profile: operational_profile
+      )
+      {
+        id: crit[:id],
+        label: crit[:label],
+        discussed: discussed.include?(crit[:id]),
+        video_url: video_url,
+        embed_url: VideoEmbed.url(video_url)
+      }
     end
 end
