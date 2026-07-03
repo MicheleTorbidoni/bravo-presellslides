@@ -43,7 +43,9 @@ class PresaleSessionsController < ApplicationController
   def profiling
     render inertia: "PresaleSessions/Profiling", props: {
       session: session_detail(@session),
-      tree: ContentConfig.decision_tree
+      tree: ContentConfig.decision_tree,
+      questionnaire: ContentConfig.questionnaire,
+      qualificationAnswers: @session.qualification_answers
     }
   end
 
@@ -292,6 +294,11 @@ class PresaleSessionsController < ApplicationController
     def session_params
       # :id is the route param, not a model attribute — drop it before permitting
       # so it isn't logged as an unpermitted parameter on every auto-save.
+      #
+      # qualification_answers is a free-form jsonb map, but we still restrict it to
+      # the known questionnaire field keys (config-driven, no permit!): multi_select
+      # fields as arrays, the rest as scalars.
+      qa = ContentConfig.questionnaire_field_keys
       params.except(:id).permit(
         :company_name,
         :contact_name,
@@ -307,7 +314,8 @@ class PresaleSessionsController < ApplicationController
         criticalities_order: [],
         discussed_criticalities: [],
         extra_criticalities: [ [ :id, :segment ] ],
-        captured_questions: [ :id, :text, :criticality_id, :slide_id, :asked_at ]
+        captured_questions: [ :id, :text, :criticality_id, :slide_id, :asked_at ],
+        qualification_answers: [ *qa[:scalar], qa[:multi_select].index_with { [] } ]
       )
     end
 end

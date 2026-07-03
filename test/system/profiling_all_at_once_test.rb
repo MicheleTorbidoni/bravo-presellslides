@@ -81,7 +81,7 @@ class ProfilingAllAtOnceTest < ApplicationSystemTestCase
     visit profiling_presale_session_path(@session)
 
     answer "Human Only", "No"                 # keeps d2 (IoT) active
-    answer "IoT", "Sì"
+    answer "Avete macchine", "Sì"             # d2 — "IoT" now also appears in an extra field's options
     answer "gestita", "MRP (o ERP)"
     answer "Gestite le Distinte", "Sì"        # unlocks d5
     answer "Che tipo di Distinta", "Multilivello"

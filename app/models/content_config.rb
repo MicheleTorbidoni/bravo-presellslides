@@ -38,6 +38,33 @@ module ContentConfig
       load_config("videos").fetch(:videos)
     end
 
+    # The sales-qualification questionnaire shown on the profiling screen alongside
+    # the decision-tree questions: an ordered list of semantic groups, each holding
+    # ordered items that are either a reference to a decision-tree question
+    # ({ ref: }) or an inline extra field ({ field:, label:, type:, options?,
+    # visible_if? }). See content/config/questionnaire.json.
+    def questionnaire
+      load_config("questionnaire")
+    end
+
+    # The inline field keys of the questionnaire, split by whether the value is an
+    # array (multi_select) or a scalar. Used by the controller to permit
+    # qualification_answers to exactly the known keys (no arbitrary mass-assignment,
+    # no permit!). Decision-tree refs are skipped — they are not stored here.
+    def questionnaire_field_keys
+      multi = []
+      scalar = []
+      questionnaire.fetch(:groups, []).each do |group|
+        group.fetch(:items, []).each do |item|
+          field = item[:field]
+          next if field.nil?
+
+          (item[:type] == "multi_select" ? multi : scalar) << field.to_sym
+        end
+      end
+      { multi_select: multi, scalar: scalar }
+    end
+
     # Resolves the deep-dive video URL for a criticality in the session's operative
     # context, most specific first — mirroring resolve_phase_url. videos.json shape
     # per criticality: { url:, tokens: { <token>: url }, segments: { <segment>: {

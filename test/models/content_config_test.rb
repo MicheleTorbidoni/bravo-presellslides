@@ -68,6 +68,49 @@ class ContentConfigTest < ActiveSupport::TestCase
     assert(profiles.all? { |p| ContentConfig.decode_profile(p).any? })
   end
 
+  test "the questionnaire loads with groups and each group has items" do
+    questionnaire = ContentConfig.questionnaire
+    groups = questionnaire[:groups]
+    assert groups.present?
+    assert(groups.all? { |g| g[:title].present? && g[:items].present? })
+  end
+
+  test "every questionnaire ref points to a real decision-tree question, each referenced once" do
+    tree = ContentConfig.decision_tree
+    refs = ContentConfig.questionnaire[:groups]
+      .flat_map { |g| g[:items] }
+      .filter_map { |i| i[:ref] }
+
+    refs.each { |ref| assert tree[:questions].key?(ref.to_sym), "unknown ref #{ref}" }
+    assert_equal tree[:questions].keys.map(&:to_s).sort, refs.sort,
+      "every decision-tree question must be referenced exactly once"
+  end
+
+  test "questionnaire inline field keys are unique and multi_select fields have options" do
+    fields = ContentConfig.questionnaire[:groups]
+      .flat_map { |g| g[:items] }
+      .select { |i| i[:field].present? }
+
+    keys = fields.map { |f| f[:field] }
+    assert_equal keys.uniq, keys, "duplicate field keys"
+
+    fields.select { |f| f[:type] == "multi_select" }.each do |f|
+      assert f[:options].present?, "multi_select #{f[:field]} needs options"
+    end
+  end
+
+  test "questionnaire_field_keys splits multi_select from scalar and excludes refs" do
+    keys = ContentConfig.questionnaire_field_keys
+
+    assert_includes keys[:multi_select], :contact_roles
+    assert_includes keys[:scalar], :annual_turnover_amount
+    assert_includes keys[:scalar], :does_subcontract_manufacturing
+    # refs (decision-tree questions) are not stored as qualification fields
+    refute_includes keys[:scalar], :d1
+    refute_includes keys[:multi_select], :d1
+    assert (keys[:multi_select] & keys[:scalar]).empty?
+  end
+
   test "mappings cover every segment x operational profile and every segment resolves a non-empty subset" do
     segment_ids = ContentConfig.segments.map { |s| s[:id] }
     profiles = ContentConfig.operational_profiles
