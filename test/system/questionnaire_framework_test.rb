@@ -18,7 +18,7 @@ class QuestionnaireFrameworkTest < ApplicationSystemTestCase
     react_fill "email", @user.email
     react_fill "password", "password"
     react_click "Log in"
-    assert_current_path dashboard_path, wait: 5
+    assert_current_path presale_sessions_path, wait: 5
   end
 
   def react_click(text)

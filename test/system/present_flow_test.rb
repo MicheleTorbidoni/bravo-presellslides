@@ -24,11 +24,11 @@ class PresentFlowTest < ApplicationSystemTestCase
     # this React submit button are flaky in headless Chrome and intermittently
     # fail to submit, leaving us stranded on /login.
     react_click "Log in"
-    # Wait for the async Inertia login POST + redirect to land on the dashboard
+    # Wait for the async Inertia login POST + redirect to land on presale sessions
     # before navigating on (a generous wait — the round trip occasionally takes
     # over Capybara's 2s default), otherwise the next visit races ahead
     # unauthenticated.
-    assert_current_path dashboard_path, wait: 5
+    assert_current_path presale_sessions_path, wait: 5
   end
 
   # Native Selenium clicks on these React-handled buttons are unreliable in

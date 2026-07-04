@@ -8,7 +8,6 @@ Rails.application.routes.draw do
 
   resources :passwords, param: :token, only: %i[ new create edit update ]
 
-  get "dashboard", to: "dashboard#show", as: :dashboard
   get "settings",  to: "settings#show",  as: :settings
 
   resources :presale_sessions, only: %i[ index create update destroy ] do

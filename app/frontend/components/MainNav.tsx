@@ -4,7 +4,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
-  Home,
   LogOut,
   Menu,
   Settings,
@@ -36,12 +35,6 @@ export type NavItemDef = {
 
 const DEFAULT_NAV_ITEMS: NavItemDef[] = [
   {
-    href: "/dashboard",
-    icon: Home,
-    label: "Home",
-    match: (url) => url === "/" || url.startsWith("/dashboard"),
-  },
-  {
     href: "/presale_sessions",
     icon: ClipboardList,
     label: "Sessioni",
@@ -65,7 +58,7 @@ function useMainNavOpen() {
 
 export function MainNav({
   items = DEFAULT_NAV_ITEMS,
-  brandHref = "/dashboard",
+  brandHref = "/presale_sessions",
 }: {
   items?: NavItemDef[]
   brandHref?: string

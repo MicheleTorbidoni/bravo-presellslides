@@ -11,7 +11,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "logs in with valid credentials and redirects to the dashboard" do
+  test "logs in with valid credentials and redirects to presale sessions" do
     assert_difference -> { Session.count }, 1 do
       post login_path, params: {
         email: @user.email,
@@ -19,7 +19,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_redirected_to dashboard_path
+    assert_redirected_to presale_sessions_path
   end
 
   test "rejects invalid credentials" do
@@ -44,18 +44,18 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to login_path
   end
 
-  test "unauthenticated users cannot reach the dashboard" do
-    get dashboard_path
+  test "unauthenticated users cannot reach presale sessions" do
+    get presale_sessions_path
     assert_redirected_to login_path
   end
 
-  test "authenticated users can reach the dashboard" do
+  test "authenticated users can reach presale sessions" do
     post login_path, params: {
       email: @user.email,
       password: @password
     }
 
-    get dashboard_path
+    get presale_sessions_path
     assert_response :success
   end
 
@@ -71,7 +71,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to login_path
 
-    get dashboard_path
+    get presale_sessions_path
     assert_redirected_to login_path
   end
 end
