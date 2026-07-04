@@ -13,7 +13,7 @@ class HubspotSimulatorTest < ApplicationSystemTestCase
     react_fill "email", @admin.email
     react_fill "password", "password"
     react_click "Log in"
-    assert_current_path dashboard_path, wait: 5
+    assert_current_path presale_sessions_path, wait: 5
   end
 
   test "simulating a booking creates a session and the hub shows the suggested star" do
