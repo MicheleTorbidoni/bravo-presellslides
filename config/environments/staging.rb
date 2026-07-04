@@ -52,16 +52,15 @@ Rails.application.configure do
   # Replace the default in-process and non-durable queuing backend for Active Job.
   config.active_job.queue_adapter = :solid_queue
 
-  # Ignore bad email addresses and do not raise email delivery errors.
-  # Set this to true and configure the email server for immediate delivery to raise delivery errors.
-  # config.action_mailer.raise_delivery_errors = false
-
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "example.com" }
 
-  # Send the prospect recap via Resend (API key from RESEND_API_KEY, see
-  # config/initializers/resend.rb).
-  config.action_mailer.delivery_method = :resend
+  # Staging is still under test, so preview outgoing mail in the browser at
+  # /letter_opener (see config/routes.rb) instead of sending it via Resend.
+  # Switch back to `:resend` once staging is used for real email delivery.
+  config.action_mailer.delivery_method = :letter_opener
+  config.action_mailer.perform_deliveries = true
+  config.action_mailer.raise_delivery_errors = true
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via rails credentials:edit.
   # config.action_mailer.smtp_settings = {
