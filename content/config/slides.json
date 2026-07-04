@@ -6,15 +6,19 @@
       "steps": [
         {
           "title": "Tempi disponibili da subito.",
-          "body": "Ogni fase di {{company_name}} viene tracciata senza sforzo."
+          "body": "Ogni fase di {{company_name}} viene raccolta senza sforzo."
         },
         {
-          "title": "Come si costruisce il ciclo.",
-          "body": null
+          "title": "La chiave è un'interfaccia chiara",
+          "body": "Tasti grandi, alto contrasto. Operatori facilitati."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Bravo ti mostra quello che ti serve",
+          "body": "Ogni informazione ha il suo canale specifico."
+        },
+        {
+          "title": "Report immediati e interattivi",
+          "body": "Identifica ogni spreco e prendi decisioni informate."
         }
       ]
     },
