@@ -42,8 +42,10 @@ end
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
+end
 
-  # Preview mail in the browser instead of sending it in development [https://github.com/ryanb/letter_opener]
+group :development, :staging do
+  # Preview mail in the browser instead of sending it in development/staging [https://github.com/ryanb/letter_opener]
   gem "letter_opener"
   # Web interface to browse sent mail [https://github.com/fgrehm/letter_opener_web]
   gem "letter_opener_web"
@@ -57,8 +59,8 @@ end
 
 gem "inertia_rails", "~> 3.11"
 
-# Send transactional email (the prospect recap) via Resend in production; dev uses
-# letter_opener previews and test uses :test. Registers the :resend delivery method.
+# Send transactional email (the prospect recap) via Resend in production; dev and
+# staging use letter_opener previews, test uses :test. Registers the :resend delivery method.
 gem "resend"
 
 gem "vite_rails", "~> 3.0"

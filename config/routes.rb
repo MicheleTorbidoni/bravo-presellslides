@@ -60,7 +60,7 @@ Rails.application.routes.draw do
   patch "profile/email",    to: "profiles#update_email"
   patch "profile/password", to: "profiles#update_password"
 
-  mount LetterOpenerWeb::Engine, at: "/letter_opener" if Rails.env.development?
+  mount LetterOpenerWeb::Engine, at: "/letter_opener" if Rails.env.development? || Rails.env.staging?
 
   get "up" => "rails/health#show", as: :rails_health_check
 
