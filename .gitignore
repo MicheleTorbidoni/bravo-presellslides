@@ -43,3 +43,5 @@ node_modules
 
 # macOS
 .DS_Store
+
+/config/credentials/staging.key
