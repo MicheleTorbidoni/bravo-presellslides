@@ -707,6 +707,67 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_includes props.dig("stepsByCriticality", "1", 0, "phases").first, "/meccanica/"
   end
 
+  test "present appends a video step resolved against the session's segment/profile context" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
+    get present_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    # The video step is last, carries no title/body/bitmap phases, and its
+    # embed_url matches the same segment+token resolution content_config_test.rb
+    # already verifies for ContentConfig.video_url_for (meccanica has a bom1
+    # override for criticality 1 in content/config/videos.json).
+    video_step = props.dig("stepsByCriticality", "1").last
+    assert_equal "C01-video", video_step["id"]
+    assert_nil video_step["title"]
+    assert_nil video_step["body"]
+    assert_equal [], video_step["phases"]
+    assert_equal "https://www.youtube-nocookie.com/embed/PLACEHOLDER-C01-meccanica-bom1",
+      video_step.dig("video", "embed_url")
+  end
+
+  test "present resolves an extra's video against its origin segment, not the session's" do
+    sign_in
+    session = presale_sessions(:one)
+    # The session's own segment (elettronica) has no override for criticality 1,
+    # so left alone it would resolve to the shared placeholder without the
+    # "-meccanica-bom1" suffix — the assertion below proves the origin segment
+    # (not elettronica) drove the resolution.
+    session.update!(segment: "elettronica", operational_profile: "ho-excel-bom-bom1",
+      selected_criticalities: [ 1 ], extra_criticalities: [ { id: 1, segment: "meccanica" } ])
+
+    get present_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    video_step = props.dig("stepsByCriticality", "1").last
+    assert_equal "https://www.youtube-nocookie.com/embed/PLACEHOLDER-C01-meccanica-bom1",
+      video_step.dig("video", "embed_url")
+  end
+
+  test "present's video step is a placeholder when the configured URL doesn't resolve to an embed" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
+    # content/config/videos.json currently only holds textual placeholder URLs
+    # that happen to be syntactically valid YouTube links (so VideoEmbed.url
+    # never actually returns nil today) — stub it to exercise the placeholder
+    # branch the player falls back to once real content author sets url: null.
+    VideoEmbed.stub(:url, nil) do
+      get present_presale_session_path(session)
+    end
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    video_step = props.dig("stepsByCriticality", "1").last
+    assert_equal "C01-video", video_step["id"]
+    assert_nil video_step.dig("video", "embed_url")
+  end
+
   test "update persists extra criticalities via the auto-save endpoint" do
     sign_in
     session = presale_sessions(:one)
