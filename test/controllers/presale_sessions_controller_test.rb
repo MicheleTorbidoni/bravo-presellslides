@@ -707,6 +707,77 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_includes props.dig("stepsByCriticality", "1", 0, "phases").first, "/meccanica/"
   end
 
+  # content/config/videos.json is content-author-owned data that changes over
+  # time (unlike code), so these tests stub ContentConfig.video_url_for to a
+  # callable that echoes back exactly the arguments it was called with, rather
+  # than asserting on the file's actual (mutable) values — content_config_test.rb
+  # covers the real resolution precedence with controlled fixtures; these tests
+  # only care that the controller threads the right segment/profile through.
+  def stub_video_url_for(&block)
+    echo = ->(criticality_id:, segment:, operational_profile:) {
+      "https://youtu.be/c#{criticality_id}-#{segment}-#{operational_profile}"
+    }
+    ContentConfig.stub(:video_url_for, echo, &block)
+  end
+
+  test "present appends a video step resolved against the session's segment/profile context" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
+    stub_video_url_for { get present_presale_session_path(session) }
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    # The video step is last, carries no title/body/bitmap phases, and its
+    # embed_url reflects the exact criticality/segment/profile passed to
+    # ContentConfig.video_url_for.
+    video_step = props.dig("stepsByCriticality", "1").last
+    assert_equal "C01-video", video_step["id"]
+    assert_nil video_step["title"]
+    assert_nil video_step["body"]
+    assert_equal [], video_step["phases"]
+    assert_equal "https://www.youtube-nocookie.com/embed/c1-meccanica-ho-excel-bom-bom1",
+      video_step.dig("video", "embed_url")
+  end
+
+  test "present resolves an extra's video against its origin segment, not the session's" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "elettronica", operational_profile: "ho-excel-bom-bom1",
+      selected_criticalities: [ 1 ], extra_criticalities: [ { id: 1, segment: "meccanica" } ])
+
+    stub_video_url_for { get present_presale_session_path(session) }
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    # The extra's video resolves against its origin segment (meccanica), not
+    # the session's own segment (elettronica).
+    video_step = props.dig("stepsByCriticality", "1").last
+    assert_equal "https://www.youtube-nocookie.com/embed/c1-meccanica-ho-excel-bom-bom1",
+      video_step.dig("video", "embed_url")
+  end
+
+  test "present's video step is a placeholder when the configured URL doesn't resolve to an embed" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
+    # content/config/videos.json currently only holds textual placeholder URLs
+    # that happen to be syntactically valid YouTube links (so VideoEmbed.url
+    # never actually returns nil today) — stub it to exercise the placeholder
+    # branch the player falls back to once real content author sets url: null.
+    VideoEmbed.stub(:url, nil) do
+      get present_presale_session_path(session)
+    end
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    video_step = props.dig("stepsByCriticality", "1").last
+    assert_equal "C01-video", video_step["id"]
+    assert_nil video_step.dig("video", "embed_url")
+  end
+
   test "update persists extra criticalities via the auto-save endpoint" do
     sign_in
     session = presale_sessions(:one)
