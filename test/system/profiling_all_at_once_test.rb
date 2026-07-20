@@ -72,7 +72,7 @@ class ProfilingAllAtOnceTest < ApplicationSystemTestCase
     assert_button "Avanti", disabled: false
     react_click "Avanti"
 
-    assert_current_path present_presale_session_path(@session), wait: 5
+    assert_current_path setup_presale_session_path(@session), wait: 5
     # Profile is the deterministic walk from the start, IoT token skipped.
     assert_equal "ho-excel-bom-bom1", @session.reload.operational_profile
   end
@@ -93,7 +93,7 @@ class ProfilingAllAtOnceTest < ApplicationSystemTestCase
     assert_button "Avanti", disabled: false
     react_click "Avanti"
 
-    assert_current_path present_presale_session_path(@session), wait: 5
+    assert_current_path setup_presale_session_path(@session), wait: 5
     assert_equal "mixed-iot-mrp-nobom", @session.reload.operational_profile
   end
 end

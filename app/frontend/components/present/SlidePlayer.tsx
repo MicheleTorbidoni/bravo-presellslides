@@ -8,6 +8,7 @@
 // phase image URLs are already resolved server-side (token > segment > shared) — see
 // ContentConfig.steps_for — so this component just displays `step.phases[phaseIndex]`.
 import { useState } from "react"
+import { PlayCircle } from "lucide-react"
 import { Stage } from "./Stage"
 import { Logo } from "./Logo"
 
@@ -16,6 +17,11 @@ export type Step = {
   title: string | null
   body: string | null
   phases: string[]
+  // M18: the synthetic final step of a criticality's flow. Present only on that
+  // step — undefined/null on every image step and on the intro, which never
+  // carries a video. embed_url is null when the configured video doesn't
+  // resolve to a known embed (see ContentConfig.video_url_for/VideoEmbed.url).
+  video?: { embed_url: string | null } | null
 }
 
 // Replaces {{company_name}} / {{contact_name}} with the prospect's data, with a
@@ -30,6 +36,18 @@ export function interpolate(
     .replace(/\{\{\s*contact_name\s*\}\}/g, contactName?.trim() || "")
 }
 
+// Labelled grey dashed-box placeholder shared by SlideImage (missing bitmap) and
+// VideoSlide (video that doesn't resolve to a known embed).
+function MissingPlaceholder({ label }: { label: string }) {
+  return (
+    <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-bm-white/40 bg-bm-white/10">
+      <span className="px-4 text-center font-mono text-[1.1cqw] text-bm-white/70">
+        {label}
+      </span>
+    </div>
+  )
+}
+
 // A bitmap that degrades to a labelled grey placeholder when the image is missing
 // (or fails to load). The player reuses this instance across steps/phases, so the
 // failed state is reset whenever `src` changes (adjusting state during render —
@@ -42,13 +60,7 @@ function SlideImage({ src, name }: { src: string | undefined; name: string }) {
     setFailed(false)
   }
   if (!src || failed) {
-    return (
-      <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-bm-white/40 bg-bm-white/10">
-        <span className="px-4 text-center font-mono text-[1.1cqw] text-bm-white/70">
-          {name}
-        </span>
-      </div>
-    )
+    return <MissingPlaceholder label={name} />
   }
   return (
     <img
@@ -57,6 +69,75 @@ function SlideImage({ src, name }: { src: string | undefined; name: string }) {
       onError={() => setFailed(true)}
       className="h-full w-full object-contain"
     />
+  )
+}
+
+// Extracts the YouTube video id from an already-resolved youtube-nocookie embed
+// URL, so the click-to-play facade can show the real thumbnail without a network
+// call (a plain <img>, not the YouTube API). Vimeo has no equivalent lightweight
+// thumbnail — the facade falls back to a plain dark background for it.
+function youtubeThumbnail(embedUrl: string): string | null {
+  const match = embedUrl.match(/youtube-nocookie\.com\/embed\/([^/?]+)/)
+  return match ? `https://i.ytimg.com/vi/${match[1]}/hqdefault.jpg` : null
+}
+
+// M18's final step: the criticality's deep-dive video, click-to-play (no
+// autoplay). Three states: no valid embed → placeholder; embed but not started →
+// a clickable facade (real YouTube thumbnail when available, a plain dark
+// background for Vimeo) with a play icon; started → the actual embed, playing.
+// Clicking the facade stops propagation so it doesn't also trigger the stage's
+// onAdvanceClick — advancing stays bound to the rest of the stage / the → key.
+function VideoSlide({ video }: { video: { embed_url: string | null } }) {
+  const [started, setStarted] = useState(false)
+  const [prevUrl, setPrevUrl] = useState(video.embed_url)
+  if (video.embed_url !== prevUrl) {
+    setPrevUrl(video.embed_url)
+    setStarted(false)
+  }
+
+  if (!video.embed_url) {
+    return <MissingPlaceholder label="Video non disponibile" />
+  }
+
+  if (started) {
+    // mute=1 alongside autoplay=1: browsers only guarantee autoplay when muted —
+    // an unmuted autoplay request on a freshly-mounted cross-origin iframe doesn't
+    // reliably inherit the click that created it, and YouTube surfaces that failure
+    // as a hard player error rather than a silent pause. Muted autoplay is
+    // universally honoured, so the video starts immediately; the prospect can
+    // unmute from YouTube's own control if they want sound.
+    return (
+      <iframe
+        src={`${video.embed_url}?autoplay=1&mute=1`}
+        title="Video di approfondimento"
+        allow="autoplay; encrypted-media; picture-in-picture"
+        allowFullScreen
+        className="h-full w-full rounded-xl"
+      />
+    )
+  }
+
+  const thumbnail = youtubeThumbnail(video.embed_url)
+
+  return (
+    <button
+      type="button"
+      aria-label="Avvia il video"
+      onClick={(e) => {
+        e.stopPropagation()
+        setStarted(true)
+      }}
+      className="group relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-black/60"
+    >
+      {thumbnail && (
+        <img src={thumbnail} alt="" className="h-full w-full object-cover" />
+      )}
+      <span className="absolute inset-0 bg-black/30 transition group-hover:bg-black/45" />
+      <PlayCircle
+        className="relative h-[6cqw] w-[6cqw] text-bm-white drop-shadow-lg"
+        strokeWidth={1.5}
+      />
+    </button>
   )
 }
 
@@ -114,6 +195,17 @@ function StepBody({
   companyName: string | null
   contactName: string | null
 }) {
+  // M18: the criticality's final step — fullscreen player, no title/body/dots.
+  if (step.video) {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-[4cqw]">
+        <div className="aspect-video max-h-full w-full overflow-hidden rounded-xl">
+          <VideoSlide video={step.video} />
+        </div>
+      </div>
+    )
+  }
+
   const title = step.title ? interpolate(step.title, companyName, contactName) : null
   const body = step.body ? interpolate(step.body, companyName, contactName) : null
   const src = step.phases[phaseIndex]

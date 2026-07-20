@@ -1,10 +1,16 @@
 require "application_system_test_case"
 
-# M15 — Fase 5: the profiling screen now shows the decision-tree (criticality)
+# M15 — Fase 5: the profiling screen shows the decision-tree (criticality)
 # questions interleaved with the sales-qualification questionnaire, grouped by
 # semantic context. Criticality questions are visually distinct (accent card) and a
 # toggle hides everything but them. Extra answers auto-save to qualification_answers
 # and are restored on reload; they never gate the "Avanti" button.
+#
+# Fase 6 (M17): Questionario A (this screen, /profiling) now holds only the
+# phase-1 groups — Interlocutore, Produzione & macchine, Gestione & software,
+# Terziarizzazione, Criticità attuali, Miglioramenti desiderati. The reduced
+# "Azienda" group (headcount/turnover) moved to Questionario B — see
+# qualification_test.rb.
 class QuestionnaireFrameworkTest < ApplicationSystemTestCase
   setup do
     @user = users(:one)
@@ -53,17 +59,17 @@ class QuestionnaireFrameworkTest < ApplicationSystemTestCase
   test "grouped layout, extra fields, auto-save + restore, and the criticality-only toggle" do
     visit profiling_presale_session_path(@session)
 
-    # Semantic groups are on screen, criticality questions interleaved.
+    # Semantic groups are on screen, criticality questions interleaved. Azienda
+    # (phase 2) is not shown here.
     assert_selector "h2", text: "Interlocutore"
-    assert_selector "h2", text: "Azienda"
     assert_selector "h2", text: "Produzione & macchine"
+    assert_selector "h2", text: "Terziarizzazione"
+    assert_no_selector "h2", text: "Azienda"
     assert_selector "legend", text: "Human Only"       # criticality (ref)
-    assert_text "Fatturato annuo"                        # extra field
+    assert_text "Affidate alcune lavorazioni in outsourcing?" # extra field
     page.save_screenshot("tmp/screenshots/m15-questionnaire-desktop.png")
 
     # Fill some extra fields (various types).
-    react_fill "qf-annual_turnover_amount", "1500000"
-    react_fill "qf-mes_expectations_text", "Ricontattare a settembre."
     answer "outsourcing", "Sì"                           # boolean field
     within find("fieldset", text: "Di cosa si occupa") do
       page.execute_script(
@@ -83,15 +89,12 @@ class QuestionnaireFrameworkTest < ApplicationSystemTestCase
     # Auto-save flushes the extras + the token profile.
     sleep 0.6
     stored = @session.reload.qualification_answers
-    assert_equal 1_500_000, stored["annual_turnover_amount"]
-    assert_equal "Ricontattare a settembre.", stored["mes_expectations_text"]
     assert_equal true, stored["does_outsource_work"]
     assert_equal [ "Consulente" ], stored["contact_roles"]
     assert_equal "ho-excel-bom-bom1", @session.operational_profile
 
     # Reload: extra values and criticality answers are restored.
     visit profiling_presale_session_path(@session)
-    assert_equal "1500000", find("#qf-annual_turnover_amount").value
     assert find("fieldset", text: "Di cosa si occupa").find("label", text: "Consulente").find("input").checked?
     assert find("fieldset", text: "Human Only").find("label", text: "Sì").find("input").checked?
 
@@ -99,17 +102,17 @@ class QuestionnaireFrameworkTest < ApplicationSystemTestCase
     within find("label", text: "Mostra solo domande per le criticità") do
       page.execute_script("arguments[0].click()", find("input"))
     end
-    assert_no_text "Fatturato annuo"
+    assert_no_text "Di cosa si occupa in azienda?"
     assert_selector "legend", text: "Human Only"
     page.save_screenshot("tmp/screenshots/m15-only-criticality.png")
   end
 
   test "renders correctly at mobile width" do
-    @session.update!(qualification_answers: { "annual_turnover_amount" => 900_000 })
+    @session.update!(qualification_answers: { "does_outsource_work" => true })
     page.driver.browser.manage.window.resize_to(390, 900)
     visit profiling_presale_session_path(@session)
     assert_selector "h2", text: "Interlocutore"
-    assert_text "Fatturato annuo"
+    assert_text "Affidate alcune lavorazioni in outsourcing?"
     page.save_screenshot("tmp/screenshots/m15-questionnaire-mobile.png")
   end
 end

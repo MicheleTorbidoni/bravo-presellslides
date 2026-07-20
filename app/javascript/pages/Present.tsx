@@ -346,8 +346,8 @@ export default function Present({
           companyName={session.company_name}
           contactName={session.contact_name}
           onBack={() => setView({ name: "hub" })}
-          onSummary={() =>
-            router.visit(`/presale_sessions/${session.id}/result`)
+          onComplete={() =>
+            router.visit(`/presale_sessions/${session.id}/qualification`)
           }
         />
       )}

@@ -2,12 +2,17 @@ require "application_system_test_case"
 
 # M14: adding criticalities from another segment in the Setup, and their behaviour
 # downstream (persistence, per-segment reset, appearance in the prospect's hub with
-# origin-segment slides).
+# origin-segment slides). The "add from another segment" panel only renders on the
+# "full" Setup pass (after Questionario A — see setup_stages_test.rb), so every
+# session here is pre-profiled.
 class SetupExtraCriticalitiesTest < ApplicationSystemTestCase
   setup do
     @user = users(:one)
     @session = presale_sessions(:one)
-    @session.update!(company_name: "Acme Spa", contact_name: "Mario Rossi", segment: "meccanica")
+    @session.update!(
+      company_name: "Acme Spa", contact_name: "Mario Rossi",
+      segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
+    )
 
     visit login_path
     react_fill "email", @user.email

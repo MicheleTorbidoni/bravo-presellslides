@@ -1,4 +1,5 @@
 require "test_helper"
+require "minitest/mock"
 
 class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
   setup do
@@ -21,7 +22,7 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "creating a session adds a record and redirects into the setup flow" do
+  test "creating a session adds a record and redirects into the setup flow (light pass)" do
     sign_in
 
     assert_difference -> { @user.presale_sessions.count }, 1 do
@@ -31,7 +32,7 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to setup_presale_session_path(@user.presale_sessions.order(:created_at).last)
   end
 
-  test "setup, profiling and result pages render for the owner" do
+  test "setup, profiling, qualification and result pages render for the owner" do
     sign_in
     session = presale_sessions(:one)
 
@@ -41,8 +42,44 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     get profiling_presale_session_path(session)
     assert_response :success
 
+    get qualification_presale_session_path(session)
+    assert_response :success
+
     get result_presale_session_path(session)
     assert_response :success
+  end
+
+  test "profiling shows the phase-1 groups (Terziarizzazione, no Azienda)" do
+    sign_in
+    session = presale_sessions(:one)
+
+    get profiling_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    titles = props["questionnaire"]["groups"].map { |g| g["title"] }
+    assert_includes titles, "Terziarizzazione"
+    assert_not_includes titles, "Azienda"
+  end
+
+  test "qualification shows only the phase-2 Azienda group" do
+    sign_in
+    session = presale_sessions(:one)
+
+    get qualification_presale_session_path(session)
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    assert_equal [ "Azienda" ], props["questionnaire"]["groups"].map { |g| g["title"] }
+    assert_not props.key?("tree")
+  end
+
+  test "a user cannot open another user's qualification screen" do
+    sign_in
+    other_session = users(:two).presale_sessions.create!
+
+    get qualification_presale_session_path(other_session)
+    assert_response :not_found
   end
 
   test "the flow pages require authentication" do
@@ -271,17 +308,16 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "q_abc123", stored.first["id"]
   end
 
-  test "update persists qualification answers (scalars and multi-select arrays)" do
+  test "update persists qualification answers (scalars and multi-select arrays, both phases)" do
     sign_in
     session = presale_sessions(:one)
 
     patch presale_session_path(session),
           params: {
             qualification_answers: {
-              contact_roles: [ "Titolare / Amministratore", "Consulente" ],
-              annual_turnover_amount: 1_500_000,
-              does_subcontract_manufacturing: true,
-              mes_expectations_text: "Interessati, ricontattare a settembre."
+              contact_roles: [ "Titolare / Amministratore", "Consulente" ], # phase 1
+              does_subcontract_manufacturing: true, # phase 1
+              annual_turnover_amount: 1_500_000 # phase 2
             }
           },
           as: :json
@@ -289,9 +325,8 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     stored = session.reload.qualification_answers
     assert_equal [ "Titolare / Amministratore", "Consulente" ], stored["contact_roles"]
-    assert_equal 1_500_000, stored["annual_turnover_amount"]
     assert_equal true, stored["does_subcontract_manufacturing"]
-    assert_equal "Interessati, ricontattare a settembre.", stored["mes_expectations_text"]
+    assert_equal 1_500_000, stored["annual_turnover_amount"]
   end
 
   test "update ignores unknown qualification-answer keys" do
@@ -451,6 +486,32 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
     assert_equal [ 3, 7 ], props["selectedCriticalities"].sort
     assert_equal [ 3, 7 ], props["suggested"]
+  end
+
+  test "setup's default selection unions HubSpot suggestions with the segment+profile mapping, badge stays HubSpot-only" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      suggested_criticalities: [ 1 ])
+
+    # Row for this exact profile maps to criticality 2 only; a second row (a
+    # different profile of the same segment) brings 1 into the segment's overall
+    # subset so the HubSpot∩segment intersection isn't emptied by the stub.
+    fixture = [
+      { segment: "meccanica", operationalProfile: "ho-excel-bom-bom1", criticalities: [ 2 ] },
+      { segment: "meccanica", operationalProfile: "other-profile", criticalities: [ 1 ] }
+    ]
+    ContentConfig.stub :mappings, fixture do
+      get setup_presale_session_path(session)
+      assert_response :success
+      props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+      # 1 comes from HubSpot, 2 from the segment+profile mapping — neither alone
+      # would produce this pair.
+      assert_equal [ 1, 2 ], props["selectedCriticalities"].sort
+      # The "suggested by prospect" badge stays HubSpot-only.
+      assert_equal [ 1 ], props["suggested"]
+    end
   end
 
   test "setup honours an explicit selection, clamped to the segment" do
@@ -644,6 +705,77 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     refute_includes first_phase, "/meccanica/"
     # A regular meccanica criticality still resolves against the session segment.
     assert_includes props.dig("stepsByCriticality", "1", 0, "phases").first, "/meccanica/"
+  end
+
+  # content/config/videos.json is content-author-owned data that changes over
+  # time (unlike code), so these tests stub ContentConfig.video_url_for to a
+  # callable that echoes back exactly the arguments it was called with, rather
+  # than asserting on the file's actual (mutable) values — content_config_test.rb
+  # covers the real resolution precedence with controlled fixtures; these tests
+  # only care that the controller threads the right segment/profile through.
+  def stub_video_url_for(&block)
+    echo = ->(criticality_id:, segment:, operational_profile:) {
+      "https://youtu.be/c#{criticality_id}-#{segment}-#{operational_profile}"
+    }
+    ContentConfig.stub(:video_url_for, echo, &block)
+  end
+
+  test "present appends a video step resolved against the session's segment/profile context" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
+    stub_video_url_for { get present_presale_session_path(session) }
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    # The video step is last, carries no title/body/bitmap phases, and its
+    # embed_url reflects the exact criticality/segment/profile passed to
+    # ContentConfig.video_url_for.
+    video_step = props.dig("stepsByCriticality", "1").last
+    assert_equal "C01-video", video_step["id"]
+    assert_nil video_step["title"]
+    assert_nil video_step["body"]
+    assert_equal [], video_step["phases"]
+    assert_equal "https://www.youtube-nocookie.com/embed/c1-meccanica-ho-excel-bom-bom1",
+      video_step.dig("video", "embed_url")
+  end
+
+  test "present resolves an extra's video against its origin segment, not the session's" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "elettronica", operational_profile: "ho-excel-bom-bom1",
+      selected_criticalities: [ 1 ], extra_criticalities: [ { id: 1, segment: "meccanica" } ])
+
+    stub_video_url_for { get present_presale_session_path(session) }
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    # The extra's video resolves against its origin segment (meccanica), not
+    # the session's own segment (elettronica).
+    video_step = props.dig("stepsByCriticality", "1").last
+    assert_equal "https://www.youtube-nocookie.com/embed/c1-meccanica-ho-excel-bom-bom1",
+      video_step.dig("video", "embed_url")
+  end
+
+  test "present's video step is a placeholder when the configured URL doesn't resolve to an embed" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
+    # content/config/videos.json currently only holds textual placeholder URLs
+    # that happen to be syntactically valid YouTube links (so VideoEmbed.url
+    # never actually returns nil today) — stub it to exercise the placeholder
+    # branch the player falls back to once real content author sets url: null.
+    VideoEmbed.stub(:url, nil) do
+      get present_presale_session_path(session)
+    end
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    video_step = props.dig("stepsByCriticality", "1").last
+    assert_equal "C01-video", video_step["id"]
+    assert_nil video_step.dig("video", "embed_url")
   end
 
   test "update persists extra criticalities via the auto-save endpoint" do

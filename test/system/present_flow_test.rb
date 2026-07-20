@@ -1,4 +1,5 @@
 require "application_system_test_case"
+require "minitest/mock"
 
 class PresentFlowTest < ApplicationSystemTestCase
   setup do
@@ -29,6 +30,14 @@ class PresentFlowTest < ApplicationSystemTestCase
     # over Capybara's 2s default), otherwise the next visit races ahead
     # unauthenticated.
     assert_current_path presale_sessions_path, wait: 5
+  end
+
+  # Capybara doesn't reset the browser window size between tests, and a couple
+  # of tests below resize it (mobile screenshot, or pinning a known desktop
+  # size) — reset unconditionally after every test so that doesn't leak into
+  # unrelated tests later in the run, regardless of execution order.
+  teardown do
+    page.driver.browser.manage.window.resize_to(1400, 1400)
   end
 
   # Native Selenium clicks on these React-handled buttons are unreliable in
@@ -69,6 +78,18 @@ class PresentFlowTest < ApplicationSystemTestCase
       press_key("ArrowRight")
     end
     assert_text "Dove fa più difficoltà la tua azienda?"
+  end
+
+  # Advances through a criticality's image steps until its trailing M18 video
+  # step shows (either the click-to-play button or the "not available"
+  # placeholder) — polling rather than a hard-coded press count, since the step
+  # count is segment-driven (meccanica has an extra step4 the shared set lacks).
+  def advance_to_video_step
+    20.times do
+      break if page.has_selector?("button[aria-label='Avvia il video']", wait: 0.2) ||
+               page.has_text?("Video non disponibile", wait: 0.2)
+      press_key("ArrowRight")
+    end
   end
 
   # The capture overlay uses an uncontrolled-feeling React textarea; set the value
@@ -215,6 +236,9 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_no_text "Dove fa più difficoltà la tua azienda?"
   end
 
+  # The outer setup block already sets operational_profile, so this exercises the
+  # "full" Setup pass (after Questionario A) — see setup_stages_test.rb for the
+  # "light" pass (before it).
   test "setup lists the segment criticalities and intro toggle, then proceeds" do
     @session.update!(segment: "meccanica")
     visit setup_presale_session_path(@session)
@@ -227,10 +251,11 @@ class PresentFlowTest < ApplicationSystemTestCase
 
     # Proceeding with the defaults (all enabled) persists the explicit selection.
     react_click "Avanti"
-    assert_current_path profiling_presale_session_path(@session), wait: 5
+    assert_current_path present_presale_session_path(@session), wait: 5
     assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], @session.reload.selected_criticalities.sort
   end
 
+  # Full pass again (operational_profile set in the outer setup block).
   test "setup shows drag handles, the hub toggle, and reorders persist on proceed" do
     @session.update!(segment: "meccanica")
     visit setup_presale_session_path(@session)
@@ -289,10 +314,14 @@ class PresentFlowTest < ApplicationSystemTestCase
     visit present_presale_session_path(@session)
     skip_intro
 
-    # Jump to the closing page (C), go to the end-of-session summary, then hand
-    # over to the internal debrief from there.
+    # Jump to the closing page (C), complete Questionario B (the phase-2
+    # qualification screen), reach the end-of-session summary, then hand over to
+    # the internal debrief from there.
     press_key("c")
     assert_text "Grazie"
+    react_click "Completa scheda"
+    assert_current_path qualification_presale_session_path(@session), wait: 5
+    assert_text "Operatori di produzione"
     react_click "Vai al riepilogo"
     assert_text "Criticità rilevanti"
     react_click "Vai al debrief"
@@ -307,5 +336,71 @@ class PresentFlowTest < ApplicationSystemTestCase
     # The recap was sent: status flips and the page shows the confirmation.
     assert_text "Recap inviato"
     assert_equal "recap_sent", @session.reload.status
+  end
+
+  # M18: every criticality ends on a deep-dive video step (click-to-play, no
+  # autoplay). C01/meccanica/bom1 resolves to a real embed today (a
+  # segment+token override in content/config/videos.json) — see
+  # presale_sessions_controller_test.rb for the resolution assertions.
+  test "the video step shows a click-to-play facade, plays on click, and the arrow key still advances" do
+    # Capybara doesn't reset the browser window size between tests in this file,
+    # so a resize from the mobile-width test could otherwise leak in here
+    # depending on run order — pin it explicitly for a proper desktop screenshot.
+    page.driver.browser.manage.window.resize_to(1400, 1400)
+    visit present_presale_session_path(@session)
+    skip_intro
+    react_click "Tempi di produzione non raccolti"
+
+    advance_to_video_step
+    assert_selector "button[aria-label='Avvia il video']", wait: 5
+    page.save_screenshot("tmp/screenshots/present-video-step.png")
+
+    # Clicking the facade starts playback — an iframe with the resolved embed
+    # replaces the thumbnail/play button.
+    page.execute_script("arguments[0].click()", find("button[aria-label='Avvia il video']"))
+    # mute=1 alongside autoplay=1 avoids a real browser-policy failure mode
+    # (unmuted autoplay on a freshly-mounted iframe can throw a hard YouTube
+    # player error instead of just staying paused) — see SlidePlayer.tsx.
+    assert_selector "iframe[src*='youtube-nocookie.com/embed/'][src*='autoplay=1'][src*='mute=1']", wait: 5
+    page.save_screenshot("tmp/screenshots/present-video-step-playing.png")
+
+    # The → key (not a click on the player itself) is still what advances past
+    # the video step, completing the criticality and returning to the hub.
+    press_key("ArrowRight")
+    assert_text "Dove fa più difficoltà la tua azienda?"
+    assert_equal [ 1 ], @session.reload.discussed_criticalities
+  end
+
+  test "the video step falls back to a placeholder when the configured video doesn't resolve to an embed" do
+    # Pin the window size for the same reason as the test above.
+    page.driver.browser.manage.window.resize_to(1400, 1400)
+    # content/config/videos.json today only holds textual placeholders that
+    # happen to be syntactically valid YouTube URLs, so VideoEmbed.url never
+    # actually returns nil yet — stub it to exercise the placeholder a real
+    # content author will eventually trigger with url: null.
+    VideoEmbed.stub(:url, nil) do
+      visit present_presale_session_path(@session)
+    end
+    skip_intro
+    react_click "Tempi di produzione non raccolti"
+
+    advance_to_video_step
+    assert_text "Video non disponibile"
+    page.save_screenshot("tmp/screenshots/present-video-placeholder.png")
+
+    # The placeholder doesn't block progress: → still advances to the hub.
+    press_key("ArrowRight")
+    assert_text "Dove fa più difficoltà la tua azienda?"
+  end
+
+  test "the video step renders correctly at mobile width" do
+    page.driver.browser.manage.window.resize_to(390, 900)
+    visit present_presale_session_path(@session)
+    skip_intro
+    react_click "Tempi di produzione non raccolti"
+
+    advance_to_video_step
+    assert_selector "button[aria-label='Avvia il video']", wait: 5
+    page.save_screenshot("tmp/screenshots/present-video-step-mobile.png")
   end
 end

@@ -47,6 +47,22 @@ class Admin::HubspotSimulatorControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Meccanica", props.dig("createdSession", "segment_label")
   end
 
+  test "simulate reassigns the created session to the current admin, even if the webhook assigned another user" do
+    log_in_as(@admin)
+    session = @user.presale_sessions.create!(
+      company_name: "Acme Srl", contact_name: "Marco Rossi",
+      segment: "meccanica", suggested_criticalities: [ 1, 2 ]
+    )
+    result = ::Hubspot::SimulateBooking::Result.new(session_id: session.id, data: {}, suggested_ids: [ 1, 2 ])
+
+    ::Hubspot::SimulateBooking.stub(:call, ->(**) { result }) do
+      post admin_simulate_hubspot_simulator_path
+    end
+
+    assert_equal @admin.id, session.reload.user_id
+    assert_includes @admin.presale_sessions, session
+  end
+
   test "simulate surfaces an error when there is no operator to assign" do
     log_in_as(@admin)
 

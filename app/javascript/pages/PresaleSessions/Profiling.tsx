@@ -1,80 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Head, router } from "@inertiajs/react"
-import { ArrowLeft } from "lucide-react"
+import { X } from "lucide-react"
 import { AppShell } from "@/components/AppShell"
 import { Button } from "@/components/ui/button"
 import { Radio } from "@/components/ui/radio"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { apiPatch } from "@/lib/api"
-import {
-  ExtraField,
-  type FieldDef,
-  type FieldValue,
-} from "@/components/questionnaire/ExtraField"
-
-type Answer = { label: string; code: string; next?: string }
-type Question = { id: string; text: string; answers: Answer[] }
-type Tree = { start: string; questions: Record<string, Question> }
-
-type RefItem = { ref: string }
-type QuestionnaireItem = RefItem | FieldDef
-type QuestionnaireGroup = { title: string; items: QuestionnaireItem[] }
-type Questionnaire = { groups: QuestionnaireGroup[] }
+import { QuestionnaireGroups } from "@/components/questionnaire/QuestionnaireGroups"
+import { useAutosum } from "@/components/questionnaire/useAutosum"
+import type {
+  Answer,
+  Answers,
+  Qual,
+  Question,
+  Questionnaire,
+  Tree,
+} from "@/components/questionnaire/types"
 
 type SessionDetail = { id: number; operational_profile: string | null }
-
-type Answers = Record<string, string>
-type Qual = Record<string, FieldValue>
-
-function isRef(item: QuestionnaireItem): item is RefItem {
-  return "ref" in item
-}
-
-// Evaluates a field's visibility condition. A condition can reference another extra
-// field (`field`) or a decision-tree question by its ref id (`ref`, matched against
-// the selected answer code). Fields without a condition, and the decision-tree refs
-// themselves, are always visible. A value already entered in a field that later
-// becomes hidden is kept (not cleared) — it reappears if the condition becomes true
-// again.
-function isVisible(def: FieldDef, qual: Qual, answers: Answers): boolean {
-  const cond = def.visible_if
-  if (!cond) return true
-  if ("ref" in cond) return answers[cond.ref] === cond.equals
-  const current = qual[cond.field]
-  if ("includes" in cond) {
-    return Array.isArray(current) && current.includes(cond.includes)
-  }
-  return current === cond.equals
-}
-
-// Finds the single autosum field (a total that is the sum of listed count fields).
-function findAutosum(
-  questionnaire: Questionnaire,
-): { field: string; sources: string[] } | null {
-  for (const group of questionnaire.groups) {
-    for (const item of group.items) {
-      if (!isRef(item) && item.autosum && item.autosum.length > 0) {
-        return { field: item.field, sources: item.autosum }
-      }
-    }
-  }
-  return null
-}
-
-function sumOf(qual: Qual, sources: string[]): number {
-  return sources.reduce(
-    (acc, f) => acc + (typeof qual[f] === "number" ? (qual[f] as number) : 0),
-    0,
-  )
-}
-
-function anyFilled(qual: Qual, sources: string[]): boolean {
-  return sources.some((f) => {
-    const v = qual[f]
-    return v != null && v !== ""
-  })
-}
 
 // Which questions are reachable — and therefore answerable — given the current
 // answers. Walk from the start node: for an answered question follow only the
@@ -158,17 +102,7 @@ export default function PresaleSessionProfiling({
   const [onlyCriticality, setOnlyCriticality] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // "Totale persone" auto-sums the count fields, but a manual value wins until it's
-  // cleared. Seed the override flag from the saved data: a saved total that differs
-  // from the sum was entered by hand.
-  const autosum = useMemo(() => findAutosum(questionnaire), [questionnaire])
-  const [totalOverridden, setTotalOverridden] = useState<boolean>(() => {
-    if (!autosum) return false
-    const initial = qualificationAnswers ?? {}
-    const total = initial[autosum.field]
-    if (total == null || total === "") return false
-    return total !== sumOf(initial, autosum.sources)
-  })
+  const { setQualValue } = useAutosum(questionnaire, qualificationAnswers, qual, setQual)
 
   const enabled = useMemo(() => enabledIds(tree, answers), [tree, answers])
   const { codes, complete } = useMemo(() => walkProfile(tree, answers), [tree, answers])
@@ -192,30 +126,8 @@ export default function PresaleSessionProfiling({
     return () => clearTimeout(timer)
   }, [session.id, profile, qual])
 
-  // Keep the auto-sum total in step with the count fields, unless the operator has
-  // typed their own total. Recomputing from `prev` (not the closed-over qual) keeps
-  // it fresh; the equality guard avoids redundant writes and re-render loops.
-  const sourcesSig = autosum
-    ? autosum.sources.map((f) => qual[f] ?? "").join("|")
-    : ""
-  useEffect(() => {
-    if (!autosum || totalOverridden) return
-    setQual((prev) => {
-      const next = anyFilled(prev, autosum.sources)
-        ? sumOf(prev, autosum.sources)
-        : null
-      // Treat undefined/null as equal so an empty total isn't written as a null key.
-      const cur = prev[autosum.field] ?? null
-      return cur === next ? prev : { ...prev, [autosum.field]: next }
-    })
-  }, [autosum, totalOverridden, sourcesSig])
-
   function selectCriticality(questionId: string, code: string) {
     setAnswers((prev) => ({ ...prev, [questionId]: code }))
-  }
-
-  function setQualValue(field: string, value: FieldValue) {
-    setQual((prev) => ({ ...prev, [field]: value }))
   }
 
   async function finish() {
@@ -225,7 +137,7 @@ export default function PresaleSessionProfiling({
       operational_profile: profile,
       qualification_answers: qual,
     })
-    router.visit(`/presale_sessions/${session.id}/present`)
+    router.visit(`/presale_sessions/${session.id}/setup`)
   }
 
   function renderCriticality(qid: string) {
@@ -286,23 +198,13 @@ export default function PresaleSessionProfiling({
         />
       </Head>
       <AppShell>
-        <div className="flex items-center justify-between border-b border-hairline pb-6">
-          <div>
-            <h1>Profilazione</h1>
-            <p className="mt-1">
-              Schermata interna — non mostrata al prospect. Le domande in{" "}
-              <span className="text-accent">evidenza</span> guidano le criticità;
-              le altre servono al commerciale.
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            onClick={() => router.visit(`/presale_sessions/${session.id}/setup`)}
-            disabled={saving}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Indietro
-          </Button>
+        <div className="border-b border-hairline pb-6">
+          <h1>Profilazione</h1>
+          <p className="mt-1">
+            Schermata interna — non mostrata al prospect. Le domande in{" "}
+            <span className="text-accent">evidenza</span> guidano le criticità;
+            le altre servono al commerciale.
+          </p>
         </div>
 
         <div className="mx-auto mt-8 max-w-2xl">
@@ -314,46 +216,26 @@ export default function PresaleSessionProfiling({
             Mostra solo domande per le criticità
           </label>
 
-          <div className="mt-6 space-y-10">
-            {questionnaire.groups.map((group) => {
-              const items = (
-                onlyCriticality ? group.items.filter(isRef) : group.items
-              ).filter((item) => isRef(item) || isVisible(item, qual, answers))
-              if (items.length === 0) return null
-              return (
-                <section key={group.title}>
-                  <h2>{group.title}</h2>
-                  <div className="mt-4 space-y-4">
-                    {items.map((item) =>
-                      isRef(item) ? (
-                        renderCriticality(item.ref)
-                      ) : (
-                        <div
-                          key={item.field}
-                          className="rounded-md border border-hairline bg-surface p-5"
-                        >
-                          <ExtraField
-                            def={item}
-                            value={qual[item.field]}
-                            onChange={
-                              autosum && item.field === autosum.field
-                                ? (v) => {
-                                    setTotalOverridden(v != null && v !== "")
-                                    setQualValue(item.field, v)
-                                  }
-                                : (v) => setQualValue(item.field, v)
-                            }
-                          />
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </section>
-              )
-            })}
+          <div className="mt-6">
+            <QuestionnaireGroups
+              questionnaire={questionnaire}
+              qual={qual}
+              answers={answers}
+              onlyCriticality={onlyCriticality}
+              onQualChange={setQualValue}
+              renderRef={renderCriticality}
+            />
           </div>
 
-          <div className="mt-10 flex justify-end">
+          <div className="mt-8 flex items-center justify-between border-t border-hairline pt-6">
+            <Button
+              variant="ghost"
+              onClick={() => router.visit("/presale_sessions")}
+              disabled={saving}
+            >
+              <X className="h-4 w-4" />
+              Chiudi
+            </Button>
             <Button size="lg" onClick={finish} disabled={!complete || saving}>
               Avanti
             </Button>

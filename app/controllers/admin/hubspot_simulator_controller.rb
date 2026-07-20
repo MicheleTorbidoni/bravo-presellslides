@@ -12,6 +12,7 @@ module Admin
 
     def simulate
       result = ::Hubspot::SimulateBooking.call(base_url: request.base_url)
+      reassign_to_current_admin(result.session_id)
       redirect_to admin_hubspot_simulator_path,
         notice: "Prenotazione simulata: sessione ##{result.session_id} creata.",
         flash: { created_session_id: result.session_id }
@@ -25,6 +26,17 @@ module Admin
     end
 
     private
+      # CreateSessionFromBooking assigns the real webhook's inbound sessions to the
+      # configured operator (env var, else User.first) — correct for production, where
+      # there's a single real operator. The simulator has no such config in dev/test, so
+      # that fallback can land on a different user than the admin running the simulation,
+      # making the session invisible on their own /presale_sessions list. Reassign it to
+      # whoever clicked "simulate" so the round-trip is actually visible to them.
+      def reassign_to_current_admin(session_id)
+        session = PresaleSession.find(session_id)
+        session.update!(user: Current.user) unless session.user_id == Current.user.id
+      end
+
       # The session created by the most recent simulation (carried across the redirect
       # in the flash), shaped for the result card. nil on a fresh page load.
       def created_session_summary
