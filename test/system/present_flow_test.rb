@@ -215,6 +215,9 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_no_text "Dove fa più difficoltà la tua azienda?"
   end
 
+  # The outer setup block already sets operational_profile, so this exercises the
+  # "full" Setup pass (after Questionario A) — see setup_stages_test.rb for the
+  # "light" pass (before it).
   test "setup lists the segment criticalities and intro toggle, then proceeds" do
     @session.update!(segment: "meccanica")
     visit setup_presale_session_path(@session)
@@ -227,10 +230,11 @@ class PresentFlowTest < ApplicationSystemTestCase
 
     # Proceeding with the defaults (all enabled) persists the explicit selection.
     react_click "Avanti"
-    assert_current_path profiling_presale_session_path(@session), wait: 5
+    assert_current_path present_presale_session_path(@session), wait: 5
     assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], @session.reload.selected_criticalities.sort
   end
 
+  # Full pass again (operational_profile set in the outer setup block).
   test "setup shows drag handles, the hub toggle, and reorders persist on proceed" do
     @session.update!(segment: "meccanica")
     visit setup_presale_session_path(@session)
@@ -289,10 +293,14 @@ class PresentFlowTest < ApplicationSystemTestCase
     visit present_presale_session_path(@session)
     skip_intro
 
-    # Jump to the closing page (C), go to the end-of-session summary, then hand
-    # over to the internal debrief from there.
+    # Jump to the closing page (C), complete Questionario B (the phase-2
+    # qualification screen), reach the end-of-session summary, then hand over to
+    # the internal debrief from there.
     press_key("c")
     assert_text "Grazie"
+    react_click "Completa scheda"
+    assert_current_path qualification_presale_session_path(@session), wait: 5
+    assert_text "Operatori di produzione"
     react_click "Vai al riepilogo"
     assert_text "Criticità rilevanti"
     react_click "Vai al debrief"

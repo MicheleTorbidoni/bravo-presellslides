@@ -12,10 +12,11 @@ Rails.application.routes.draw do
 
   resources :presale_sessions, only: %i[ index create update destroy ] do
     member do
-      get :setup
       get :profiling
-      get :result
+      get :setup
       get :present
+      get :qualification
+      get :result
       get :debrief
       post :recap
     end

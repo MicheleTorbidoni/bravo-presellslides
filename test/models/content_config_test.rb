@@ -75,6 +75,81 @@ class ContentConfigTest < ActiveSupport::TestCase
     assert(groups.all? { |g| g[:title].present? && g[:items].present? })
   end
 
+  test "every questionnaire group declares a phase of 1 or 2" do
+    groups = ContentConfig.questionnaire[:groups]
+    assert(groups.all? { |g| [ 1, 2 ].include?(g[:phase]) }, "every group needs phase: 1 or 2")
+  end
+
+  test "the questionnaire groups match the Fase 6 split (title + phase, in order)" do
+    expected = [
+      [ "Interlocutore", 1 ],
+      [ "Produzione & macchine", 1 ],
+      [ "Gestione & software", 1 ],
+      [ "Terziarizzazione", 1 ],
+      [ "Criticità attuali", 1 ],
+      [ "Miglioramenti desiderati", 1 ],
+      [ "Azienda", 2 ]
+    ]
+    actual = ContentConfig.questionnaire[:groups].map { |g| [ g[:title], g[:phase] ] }
+    assert_equal expected, actual
+  end
+
+  test "Terziarizzazione holds exactly the conto-terzi/outsourcing fields, with the same visible_if as before" do
+    group = ContentConfig.questionnaire[:groups].find { |g| g[:title] == "Terziarizzazione" }
+    assert group, "Terziarizzazione group is missing"
+
+    fields = group[:items].map { |i| i[:field] }
+    assert_equal %w[ does_subcontract_manufacturing subcontract_turnover_percentage does_outsource_work ], fields
+
+    percentage = group[:items].find { |i| i[:field] == "subcontract_turnover_percentage" }
+    assert_equal({ field: "does_subcontract_manufacturing", equals: true }, percentage[:visible_if])
+  end
+
+  test "Azienda (phase 2) holds exactly the six residual company fields" do
+    group = ContentConfig.questionnaire[:groups].find { |g| g[:title] == "Azienda" }
+    assert_equal 2, group[:phase]
+
+    fields = group[:items].map { |i| i[:field] }
+    assert_equal %w[
+      production_operators_count
+      technical_office_people_count
+      administrative_people_count
+      other_office_people_count
+      total_people_count
+      annual_turnover_amount
+    ], fields
+  end
+
+  test "the three cut groups (Motivazione, Obiettivi, Aspettative) no longer exist" do
+    titles = ContentConfig.questionnaire[:groups].map { |g| g[:title] }
+    assert_not_includes titles, "Motivazione del contatto"
+    assert_not_includes titles, "Obiettivi di business"
+    assert_not_includes titles, "Aspettative"
+
+    keys = ContentConfig.questionnaire_field_keys[:scalar] + ContentConfig.questionnaire_field_keys[:multi_select]
+    %i[
+      contact_reason_categories contact_reason_other_text
+      business_goal_categories business_goal_other_text
+      mes_expectations_text
+    ].each { |field| assert_not_includes keys, field }
+  end
+
+  test "questionnaire(phase:) filters groups, and questionnaire_field_keys ignores phase entirely" do
+    phase1_titles = ContentConfig.questionnaire(phase: 1)[:groups].map { |g| g[:title] }
+    assert_equal [
+      "Interlocutore", "Produzione & macchine", "Gestione & software",
+      "Terziarizzazione", "Criticità attuali", "Miglioramenti desiderati"
+    ], phase1_titles
+
+    assert_equal [ "Azienda" ], ContentConfig.questionnaire(phase: 2)[:groups].map { |g| g[:title] }
+
+    # /update must keep permitting fields from both phases regardless of which
+    # screen wrote them — questionnaire_field_keys must not filter by phase.
+    keys = ContentConfig.questionnaire_field_keys[:scalar]
+    assert_includes keys, :does_subcontract_manufacturing # phase 1
+    assert_includes keys, :annual_turnover_amount # phase 2
+  end
+
   test "every questionnaire ref points to a real decision-tree question, each referenced once" do
     tree = ContentConfig.decision_tree
     refs = ContentConfig.questionnaire[:groups]
@@ -174,6 +249,18 @@ class ContentConfigTest < ActiveSupport::TestCase
     assert_equal [], ContentConfig.criticalities_for_segment(segment: "does-not-exist")
     assert_equal [], ContentConfig.criticalities_for_segment(segment: nil)
     assert_equal [], ContentConfig.criticalities_for_segment(segment: "")
+  end
+
+  test "criticalities_for resolves the single segment+operational_profile mapping row" do
+    resolved = ContentConfig.criticalities_for(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+    assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], resolved
+  end
+
+  test "criticalities_for returns [] for blank segment, blank profile, or no matching row" do
+    assert_equal [], ContentConfig.criticalities_for(segment: nil, operational_profile: "ho-excel-bom-bom1")
+    assert_equal [], ContentConfig.criticalities_for(segment: "meccanica", operational_profile: nil)
+    assert_equal [], ContentConfig.criticalities_for(segment: "does-not-exist", operational_profile: "ho-excel-bom-bom1")
+    assert_equal [], ContentConfig.criticalities_for(segment: "meccanica", operational_profile: "not-a-real-profile")
   end
 
   test "decode_profile walks the tree into readable question/answer steps" do

@@ -2,6 +2,7 @@
   "groups": [
     {
       "title": "Interlocutore",
+      "phase": 1,
       "items": [
         {
           "field": "contact_roles",
@@ -30,36 +31,8 @@
       ]
     },
     {
-      "title": "Azienda",
-      "items": [
-        { "field": "production_operators_count", "label": "Operatori di produzione", "type": "integer" },
-        { "field": "technical_office_people_count", "label": "Persone nell'ufficio tecnico", "type": "integer" },
-        { "field": "administrative_people_count", "label": "Persone in amministrazione", "type": "integer" },
-        { "field": "other_office_people_count", "label": "Altre persone d'ufficio", "type": "integer" },
-        {
-          "field": "total_people_count",
-          "label": "Totale persone",
-          "type": "integer",
-          "autosum": [
-            "production_operators_count",
-            "technical_office_people_count",
-            "administrative_people_count",
-            "other_office_people_count"
-          ]
-        },
-        { "field": "annual_turnover_amount", "label": "Fatturato annuo", "type": "currency" },
-        { "field": "does_subcontract_manufacturing", "label": "Svolgete lavorazioni conto terzi?", "type": "boolean" },
-        {
-          "field": "subcontract_turnover_percentage",
-          "label": "Quanto incidono sul fatturato?",
-          "type": "percentage",
-          "visible_if": { "field": "does_subcontract_manufacturing", "equals": true }
-        },
-        { "field": "does_outsource_work", "label": "Affidate alcune lavorazioni in outsourcing?", "type": "boolean" }
-      ]
-    },
-    {
       "title": "Produzione & macchine",
+      "phase": 1,
       "items": [
         { "ref": "d1" },
         { "ref": "d2" }
@@ -67,6 +40,7 @@
     },
     {
       "title": "Gestione & software",
+      "phase": 1,
       "items": [
         { "ref": "d3" },
         {
@@ -80,64 +54,22 @@
       ]
     },
     {
-      "title": "Motivazione del contatto",
+      "title": "Terziarizzazione",
+      "phase": 1,
       "items": [
+        { "field": "does_subcontract_manufacturing", "label": "Svolgete lavorazioni conto terzi?", "type": "boolean" },
         {
-          "field": "contact_reason_categories",
-          "label": "Qual è il motivo principale che vi ha portato a contattarci?",
-          "type": "multi_select",
-          "options": [
-            "Eliminare la carta",
-            "Automatizzare i processi",
-            "Digitalizzare la produzione",
-            "Abbandonare Excel",
-            "Non disponiamo di un sistema MES",
-            "Migliorare il controllo di commessa",
-            "Tracciare tempi uomo",
-            "Tracciare tempi macchina",
-            "Conoscere l'avanzamento della produzione",
-            "Interconnettere le macchine / Industria 4.0 / IoT",
-            "L'attuale fornitore software non soddisfa le esigenze produttive",
-            "Altro"
-          ]
+          "field": "subcontract_turnover_percentage",
+          "label": "Quanto incidono sul fatturato?",
+          "type": "percentage",
+          "visible_if": { "field": "does_subcontract_manufacturing", "equals": true }
         },
-        {
-          "field": "contact_reason_other_text",
-          "label": "Specifica",
-          "type": "textarea",
-          "visible_if": { "field": "contact_reason_categories", "includes": "Altro" }
-        }
-      ]
-    },
-    {
-      "title": "Obiettivi di business",
-      "items": [
-        {
-          "field": "business_goal_categories",
-          "label": "Quali risultati vorreste ottenere?",
-          "type": "multi_select",
-          "options": [
-            "Recuperare efficienza",
-            "Ridurre i tempi di produzione",
-            "Ridurre i fermi macchina",
-            "Ridurre gli sprechi",
-            "Ridurre i costi di produzione",
-            "Ridurre gli scarti",
-            "Ottenere dati affidabili",
-            "Monitorare l'avanzamento della produzione in tempo reale",
-            "Altro"
-          ]
-        },
-        {
-          "field": "business_goal_other_text",
-          "label": "Specifica",
-          "type": "textarea",
-          "visible_if": { "field": "business_goal_categories", "includes": "Altro" }
-        }
+        { "field": "does_outsource_work", "label": "Affidate alcune lavorazioni in outsourcing?", "type": "boolean" }
       ]
     },
     {
       "title": "Criticità attuali",
+      "phase": 1,
       "items": [
         {
           "field": "current_issue_categories",
@@ -163,6 +95,7 @@
     },
     {
       "title": "Miglioramenti desiderati",
+      "phase": 1,
       "items": [
         {
           "field": "desired_improvement_categories",
@@ -187,13 +120,25 @@
       ]
     },
     {
-      "title": "Aspettative",
+      "title": "Azienda",
+      "phase": 2,
       "items": [
+        { "field": "production_operators_count", "label": "Operatori di produzione", "type": "integer" },
+        { "field": "technical_office_people_count", "label": "Persone nell'ufficio tecnico", "type": "integer" },
+        { "field": "administrative_people_count", "label": "Persone in amministrazione", "type": "integer" },
+        { "field": "other_office_people_count", "label": "Altre persone d'ufficio", "type": "integer" },
         {
-          "field": "mes_expectations_text",
-          "label": "Che cosa vi aspettate dall'implementazione di un software MES come Bravo Manufacturing?",
-          "type": "textarea"
-        }
+          "field": "total_people_count",
+          "label": "Totale persone",
+          "type": "integer",
+          "autosum": [
+            "production_operators_count",
+            "technical_office_people_count",
+            "administrative_people_count",
+            "other_office_people_count"
+          ]
+        },
+        { "field": "annual_turnover_amount", "label": "Fatturato annuo", "type": "currency" }
       ]
     }
   ]

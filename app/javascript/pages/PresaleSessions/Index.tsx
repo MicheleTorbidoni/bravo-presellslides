@@ -209,9 +209,11 @@ export default function PresaleSessionsIndex({
                   </Link>
                   {isActive(session) && (
                     <Button asChild variant="secondary" size="sm">
-                      <Link
-                        href={`/presale_sessions/${session.id}/${session.profiled ? "result" : "setup"}`}
-                      >
+                      {/* Setup is shown twice in the flow (light before
+                          Questionario A, full after) and renders itself
+                          accordingly from the session's own state, so any
+                          in-progress session can always resume there. */}
+                      <Link href={`/presale_sessions/${session.id}/setup`}>
                         Riprendi
                       </Link>
                     </Button>
