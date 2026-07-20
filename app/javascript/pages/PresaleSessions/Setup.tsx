@@ -37,13 +37,17 @@ type SessionDetail = {
   contact_name: string | null
   prospect_email: string | null
   segment: string | null
+  operational_profile: string | null
 }
 
 // A single criticality row: a drag handle (the only drag-initiating element, so the
 // checkbox stays clickable), the enable/disable checkbox, the label, and the
 // "suggested by prospect" badge. Extra criticalities borrowed from another segment
 // pass `sourceSegmentLabel` (shows an origin badge) and `onRemove` (shows a remove
-// "X"); plain segment rows omit both and stay unchanged.
+// "X"); plain segment rows omit both and stay unchanged. `reorderable` (false on
+// the "light" pass, before Questionario A) simply omits the drag handle — with
+// nothing to grab, the row can't be dragged, so no separate non-sortable list
+// rendering is needed for that pass.
 function SortableCriticality({
   criticality,
   isOn,
@@ -51,6 +55,7 @@ function SortableCriticality({
   onToggle,
   sourceSegmentLabel,
   onRemove,
+  reorderable,
 }: {
   criticality: Criticality
   isOn: boolean
@@ -58,6 +63,7 @@ function SortableCriticality({
   onToggle: (id: number) => void
   sourceSegmentLabel?: string
   onRemove?: (id: number) => void
+  reorderable: boolean
 }) {
   const {
     attributes,
@@ -84,15 +90,17 @@ function SortableCriticality({
       )}
     >
       <span className="flex items-center gap-3">
-        <button
-          type="button"
-          aria-label="Trascina per riordinare"
-          className="-ml-1 cursor-grab touch-none text-ink-muted transition-colors hover:text-ink-body active:cursor-grabbing"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+        {reorderable && (
+          <button
+            type="button"
+            aria-label="Trascina per riordinare"
+            className="-ml-1 cursor-grab touch-none text-ink-muted transition-colors hover:text-ink-body active:cursor-grabbing"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        )}
         <label className="flex cursor-pointer items-center gap-3 font-normal text-ink-body">
           <Checkbox checked={isOn} onChange={() => onToggle(criticality.id)} />
           <span>{criticality.label}</span>
@@ -232,6 +240,12 @@ export default function PresaleSessionSetup({
   const [showHub, setShowHub] = useState(showHubProp)
   const [showError, setShowError] = useState(false)
 
+  // Setup is shown twice: "light" before Questionario A (operational_profile not
+  // set yet — just enough to route into the questionnaire) and "full" after it
+  // (every section, criticality selection required). Session data alone decides
+  // which — no separate prop needed.
+  const profiled = Boolean(session.operational_profile)
+
   const segmentLabelById = new Map(segments.map((s) => [s.id, s.label]))
 
   const url = `/presale_sessions/${session.id}`
@@ -354,8 +368,12 @@ export default function PresaleSessionSetup({
     })
   }
 
-  async function continueToProfiling() {
-    if (!segment || selected.length === 0) {
+  // Light pass: only the segment is required (criticality selection is optional,
+  // refined on the full pass) and "Avanti" routes into Questionario A. Full pass
+  // (already profiled): same gate as before this revision — segment + at least
+  // one enabled criticality — routing into the presentation.
+  async function advance() {
+    if (!segment || (profiled && selected.length === 0)) {
       setShowError(true)
       return
     }
@@ -369,7 +387,7 @@ export default function PresaleSessionSetup({
       show_intro: showIntro,
       show_hub: showHub,
     })
-    router.visit(`/presale_sessions/${session.id}/profiling`)
+    router.visit(`/presale_sessions/${session.id}/${profiled ? "present" : "profiling"}`)
   }
 
   return (
@@ -389,8 +407,9 @@ export default function PresaleSessionSetup({
         <div className="border-b border-hairline pb-6">
           <h1>Setup sessione</h1>
           <p className="mt-1">
-            Dati del prospect e segmento industriale. Queste schermate non vengono
-            mostrate al prospect.
+            {profiled
+              ? "Rifinisci la configurazione con tutto il quadro ormai chiaro, prima di iniziare la presentazione. Non viene mostrata al prospect."
+              : "Dati essenziali del prospect prima del questionario. Riordino, criticità da altri segmenti e le impostazioni di presentazione si scelgono al prossimo passaggio. Non viene mostrata al prospect."}
           </p>
         </div>
 
@@ -462,8 +481,9 @@ export default function PresaleSessionSetup({
               Criticità da discutere
             </h2>
             <p className="mt-1 text-sm text-ink-muted">
-              Abilita le criticità da presentare e trascinale per scegliere
-              l'ordine.
+              {profiled
+                ? "Abilita le criticità da presentare e trascinale per scegliere l'ordine."
+                : "Abilita le criticità da presentare (facoltativo qui — si rifinisce al prossimo passaggio)."}
               {suggested.length > 0 &&
                 " Quelle contrassegnate sono già state indicate dal prospect."}
             </p>
@@ -492,45 +512,50 @@ export default function PresaleSessionSetup({
                             : undefined
                         }
                         onRemove={extra ? removeExtra : undefined}
+                        reorderable={profiled}
                       />
                     )
                   })}
                 </ul>
               </SortableContext>
             </DndContext>
-            {showError && segment && selected.length === 0 && (
+            {showError && segment && profiled && selected.length === 0 && (
               <p className="mt-2 text-xs text-danger-display">
                 Abilita almeno una criticità per continuare.
               </p>
             )}
 
-            <AddFromSegmentPanel
-              segments={segments}
-              currentSegment={segment}
-              criticalitiesBySegment={criticalitiesBySegment}
-              segmentIds={segmentIds}
-              extraIds={new Set(extras.map((e) => e.id))}
-              pickerSegment={pickerSegment}
-              onPickSegment={setPickerSegment}
-              onAdd={addExtra}
-            />
+            {profiled && (
+              <>
+                <AddFromSegmentPanel
+                  segments={segments}
+                  currentSegment={segment}
+                  criticalitiesBySegment={criticalitiesBySegment}
+                  segmentIds={segmentIds}
+                  extraIds={new Set(extras.map((e) => e.id))}
+                  pickerSegment={pickerSegment}
+                  onPickSegment={setPickerSegment}
+                  onAdd={addExtra}
+                />
 
-            <div className="mt-5 flex flex-col gap-3">
-              <label className="flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
-                <Checkbox
-                  checked={showIntro}
-                  onChange={(e) => setShowIntro(e.target.checked)}
-                />
-                <span>Mostra l'introduzione all'inizio</span>
-              </label>
-              <label className="flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
-                <Checkbox
-                  checked={showHub}
-                  onChange={(e) => setShowHub(e.target.checked)}
-                />
-                <span>Mostra l'hub tra le criticità</span>
-              </label>
-            </div>
+                <div className="mt-5 flex flex-col gap-3">
+                  <label className="flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
+                    <Checkbox
+                      checked={showIntro}
+                      onChange={(e) => setShowIntro(e.target.checked)}
+                    />
+                    <span>Mostra l'introduzione all'inizio</span>
+                  </label>
+                  <label className="flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
+                    <Checkbox
+                      checked={showHub}
+                      onChange={(e) => setShowHub(e.target.checked)}
+                    />
+                    <span>Mostra l'hub tra le criticità</span>
+                  </label>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -542,7 +567,7 @@ export default function PresaleSessionSetup({
             <X className="h-4 w-4" />
             Chiudi
           </Button>
-          <Button onClick={continueToProfiling}>
+          <Button onClick={advance}>
             Avanti
             <ArrowRight className="h-4 w-4" />
           </Button>

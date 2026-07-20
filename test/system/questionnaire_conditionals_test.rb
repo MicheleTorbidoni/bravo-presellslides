@@ -81,33 +81,8 @@ class QuestionnaireConditionalsTest < ApplicationSystemTestCase
     assert_no_selector "#qf-production_management_software_name"
   end
 
-  test "totale persone auto-sums the counts, with a manual override that wins until cleared" do
+  test "percentage field shows inline, non-blocking validation, independent of the criticality gate" do
     visit profiling_presale_session_path(@session)
-
-    react_fill "qf-production_operators_count", "2"
-    react_fill "qf-technical_office_people_count", "3"
-    react_fill "qf-administrative_people_count", "1"
-    react_fill "qf-other_office_people_count", "4"
-
-    # Auto-sum = 2 + 3 + 1 + 4.
-    assert_equal "10", find("#qf-total_people_count").value
-
-    # Manual override: total holds its typed value even when a count changes.
-    react_fill "qf-total_people_count", "99"
-    react_fill "qf-production_operators_count", "5"
-    assert_equal "99", find("#qf-total_people_count").value
-
-    # Clearing the total resumes the auto-sum: now 5 + 3 + 1 + 4.
-    react_fill "qf-total_people_count", ""
-    assert_equal "13", find("#qf-total_people_count").value
-    page.save_screenshot("tmp/screenshots/m16-autosum.png")
-  end
-
-  test "numeric fields show inline, non-blocking validation" do
-    visit profiling_presale_session_path(@session)
-
-    react_fill "qf-production_operators_count", "-1"
-    assert_text "Inserisci un valore maggiore o uguale a 0."
 
     choose_within "conto terzi", "Sì"
     react_fill "qf-subcontract_turnover_percentage", "150"

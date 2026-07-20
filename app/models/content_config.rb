@@ -38,13 +38,19 @@ module ContentConfig
       load_config("videos").fetch(:videos)
     end
 
-    # The sales-qualification questionnaire shown on the profiling screen alongside
-    # the decision-tree questions: an ordered list of semantic groups, each holding
-    # ordered items that are either a reference to a decision-tree question
-    # ({ ref: }) or an inline extra field ({ field:, label:, type:, options?,
-    # visible_if? }). See content/config/questionnaire.json.
-    def questionnaire
-      load_config("questionnaire")
+    # The sales-qualification questionnaire, split across two screens by group:
+    # phase 1 (Questionario A, before Setup) holds the decision-tree groups plus
+    # context groups; phase 2 (Questionario B, after the presentation) holds the
+    # remaining company/headcount group. Each group is an ordered list of items
+    # that are either a reference to a decision-tree question ({ ref: }) or an
+    # inline extra field ({ field:, label:, type:, options?, visible_if? }). See
+    # content/config/questionnaire.json. Pass no `phase` to get every group
+    # (used by questionnaire_field_keys, which permits fields from both phases).
+    def questionnaire(phase: nil)
+      raw = load_config("questionnaire")
+      return raw if phase.nil?
+
+      { groups: raw.fetch(:groups).select { |g| g[:phase] == phase } }
     end
 
     # The inline field keys of the questionnaire, split by whether the value is an
@@ -163,6 +169,18 @@ module ContentConfig
                     .flat_map { |m| m[:criticalities] }
                     .to_set
       criticalities.select { |c| ids.include?(c[:id]) }
+    end
+
+    # Resolves the single mapping row for this exact segment + operational_profile
+    # pair (unlike criticalities_for_segment, which unions every profile of the
+    # segment) — used to sharpen Setup's default criticality suggestion beyond the
+    # HubSpot signal. Returns the row's criticality ids as-is, or [] when
+    # segment/profile is blank or no row matches.
+    def criticalities_for(segment:, operational_profile:)
+      return [] if segment.blank? || operational_profile.blank?
+
+      mappings.find { |m| m[:segment] == segment && m[:operationalProfile] == operational_profile }
+              &.fetch(:criticalities, []) || []
     end
 
     # Turns a composite operational_profile key (e.g. "ho-excel-bom-bom1") into a

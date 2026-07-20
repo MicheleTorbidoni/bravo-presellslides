@@ -5,7 +5,7 @@ class PresaleSessionsController < ApplicationController
   # show up as an "Unpermitted parameters" warning on every save.
   wrap_parameters format: []
 
-  before_action :set_session, only: %i[ setup profiling result present update debrief recap destroy ]
+  before_action :set_session, only: %i[ setup profiling qualification result present update debrief recap destroy ]
 
   # Sessions area. Lists the current user's pre-sale sessions; the full archive
   # (search, delete) arrives in a later milestone.
@@ -22,9 +22,32 @@ class PresaleSessionsController < ApplicationController
   end
 
   # Step 1 of the internal flow: prospect data, industrial segment, the criticality
-  # subset to discuss, and whether the intro plays. criticalitiesBySegment lets the
-  # client re-render the criticality list as the operator switches segment without a
-  # round-trip; selectedCriticalities is the effective (already-defaulted) selection.
+  # subset to discuss. Shown twice — see the Setup props/comment below — once
+  # "light" before Questionario A, once "full" after it, so the operator refines
+  # the selection once the technical answers are known.
+  def profiling
+    render inertia: "PresaleSessions/Profiling", props: {
+      session: session_detail(@session),
+      tree: ContentConfig.decision_tree,
+      questionnaire: ContentConfig.questionnaire(phase: 1),
+      qualificationAnswers: @session.qualification_answers
+    }
+  end
+
+  # Setup is shown twice in the flow, at the same URL, rendering more or less of
+  # itself depending on whether Questionario A has run yet (operational_profile
+  # present in session_detail's payload):
+  #   - "light" (before Questionario A): company/contact/segment + a plain
+  #     criticality checklist (no reorder, no cross-segment extras, no intro/hub
+  #     toggles, criticality selection optional) — just enough to know who's on
+  #     the call and route into the questionnaire.
+  #   - "full" (after Questionario A, i.e. operational_profile is set): every
+  #     section, exactly as before this revision, criticality selection required.
+  # The client decides which mode to render from session.operational_profile;
+  # criticalitiesBySegment lets it re-render the list as the operator switches
+  # segment without a round-trip; selectedCriticalities is the effective
+  # (already-defaulted) selection, sharpened by the operational profile once
+  # Questionario A has supplied one (see effective_selected_ids).
   def setup
     render inertia: "PresaleSessions/Setup", props: {
       session: session_detail(@session),
@@ -39,12 +62,14 @@ class PresaleSessionsController < ApplicationController
     }
   end
 
-  # Step 2: the decision tree (5 questions, conditional skips), walked client-side.
-  def profiling
-    render inertia: "PresaleSessions/Profiling", props: {
+  # Questionario B: reached from the presentation's closing screen ("Completa
+  # scheda"), after the call itself is essentially done. Shows only the phase-2
+  # qualification group (today: reduced "Azienda" — headcount/turnover) — no
+  # decision-tree questions here, so no tree prop and no completion gate.
+  def qualification
+    render inertia: "PresaleSessions/Qualification", props: {
       session: session_detail(@session),
-      tree: ContentConfig.decision_tree,
-      questionnaire: ContentConfig.questionnaire,
+      questionnaire: ContentConfig.questionnaire(phase: 2),
       qualificationAnswers: @session.qualification_answers
     }
   end
@@ -173,15 +198,21 @@ class PresaleSessionsController < ApplicationController
 
     # The criticalities the session will actually discuss, as ids in no particular
     # order. Single source of truth for setup/present/result. nil selection means
-    # the operator never chose, so we default: the prospect's suggestions (if any,
-    # intersected with the segment) else the whole segment subset. An explicit
-    # selection (including []) is honoured, but always clamped to the allowed ids
-    # (segment ∪ extras) so a later segment change can't leave stale ids behind.
+    # the operator never chose, so we default: the union of the prospect's HubSpot
+    # suggestions and the segment+operational-profile mapping (Questionario A now
+    # runs before Setup, so the profile is already known), each intersected with
+    # the segment, else the whole segment subset. An explicit selection (including
+    # []) is honoured, but always clamped to the allowed ids (segment ∪ extras) so
+    # a later segment change can't leave stale ids behind.
     def effective_selected_ids(session)
       segment_ids = ContentConfig.criticalities_for_segment(segment: session.segment).map { |c| c[:id] }
       return session.selected_criticalities & allowed_ids(session) unless session.selected_criticalities.nil?
 
-      suggested = session.suggested_criticalities & segment_ids
+      hubspot = session.suggested_criticalities & segment_ids
+      profile_mapped = ContentConfig.criticalities_for(
+        segment: session.segment, operational_profile: session.operational_profile
+      ) & segment_ids
+      suggested = hubspot | profile_mapped
       suggested.presence || segment_ids
     end
 
