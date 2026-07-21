@@ -60,6 +60,34 @@ class PresaleSessionTest < ActiveSupport::TestCase
     assert_equal token, session.reload.public_token
   end
 
+  test "setup_complete? requires segment, operational_profile and a saved criticality selection" do
+    session = @user.presale_sessions.create!
+    assert_not session.setup_complete?
+
+    session.segment = "meccanica"
+    assert_not session.setup_complete?
+
+    session.operational_profile = "ho-excel-bom-bom1"
+    assert_not session.setup_complete?, "selected_criticalities is still nil"
+
+    session.selected_criticalities = []
+    assert_not session.setup_complete?, "an explicit empty selection doesn't count as complete"
+
+    session.selected_criticalities = [ 1 ]
+    assert session.setup_complete?
+  end
+
+  test "presentation_complete? is true once the session is closed or its recap sent" do
+    session = @user.presale_sessions.create!
+    assert_not session.presentation_complete?
+
+    session.status = "closed"
+    assert session.presentation_complete?
+
+    session.status = "recap_sent"
+    assert session.presentation_complete?
+  end
+
   test "is removed when its user is destroyed" do
     @user.presale_sessions.create!
 

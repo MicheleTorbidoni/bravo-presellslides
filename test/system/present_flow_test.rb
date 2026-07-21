@@ -161,8 +161,9 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_text "Acme Spa"
     page.save_screenshot("tmp/screenshots/present-closing.png")
 
-    # Reaching the closing page marks the session closed.
-    assert_equal "closed", @session.reload.status
+    # Reaching the closing page is a view transition only — the session isn't
+    # marked closed until Questionario B is submitted (see qualification_test.rb).
+    assert_equal "in_progress", @session.reload.status
   end
 
   test "navigating steps and phases forward and back shows the right image" do
@@ -323,9 +324,9 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_current_path qualification_presale_session_path(@session), wait: 5
     assert_text "Operatori di produzione"
     react_click "Vai al riepilogo"
-    assert_text "Criticità rilevanti"
-    react_click "Vai al debrief"
+    assert_current_path debrief_presale_session_path(@session), wait: 5
     assert_text "Debrief"
+    assert_equal "closed", @session.reload.status
     page.save_screenshot("tmp/screenshots/debrief.png")
 
     # Open the send-recap modal, fill the recipient (body is pre-composed), send.

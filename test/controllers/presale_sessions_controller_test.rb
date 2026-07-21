@@ -32,7 +32,7 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to setup_presale_session_path(@user.presale_sessions.order(:created_at).last)
   end
 
-  test "setup, profiling, qualification and result pages render for the owner" do
+  test "setup, profiling and qualification pages render for the owner" do
     sign_in
     session = presale_sessions(:one)
 
@@ -43,9 +43,6 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     get qualification_presale_session_path(session)
-    assert_response :success
-
-    get result_presale_session_path(session)
     assert_response :success
   end
 
@@ -87,27 +84,6 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
 
     get setup_presale_session_path(session)
     assert_redirected_to login_path
-  end
-
-  test "result renders for a session with a mapped segment and profile" do
-    sign_in
-    session = presale_sessions(:one)
-    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
-
-    get result_presale_session_path(session)
-    assert_response :success
-  end
-
-  test "result hands over the prospect's suggested criticalities for the badge" do
-    sign_in
-    session = presale_sessions(:one)
-    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
-      suggested_criticalities: [ 1, 3 ])
-
-    get result_presale_session_path(session)
-    assert_response :success
-    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
-    assert_equal [ 1, 3 ], props["suggested"]
   end
 
   test "a user cannot open another user's session flow" do
@@ -205,8 +181,10 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     # — themes, questions, video links — lives on the public page, not the email.
     assert_includes props["defaultRecapBody"], "Acme Spa"
     refute_includes props["defaultRecapBody"], "Approfondimenti video:"
-    # No recap sent yet for this session, so there is no public link to show.
-    assert_nil props["publicRecapUrl"]
+    # The public token is minted on first view of the debrief page, so the
+    # link is present even though no recap has been sent yet.
+    assert props["publicRecapUrl"].present?
+    assert_includes props["publicRecapUrl"], session.reload.public_token
   end
 
   test "recap sends the email, marks the session recap_sent and redirects to the debrief" do
@@ -436,6 +414,31 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal expected_label, row["segment_label"]
   end
 
+  test "index exposes setup_complete and presentation_complete for the row actions" do
+    sign_in
+    session = presale_sessions(:one)
+
+    get presale_sessions_path
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    row = props["sessions"].find { |s| s["id"] == session.id }
+    assert_equal false, row["setup_complete"]
+    assert_equal false, row["presentation_complete"]
+
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
+      selected_criticalities: [ 1 ])
+    get presale_sessions_path
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    row = props["sessions"].find { |s| s["id"] == session.id }
+    assert_equal true, row["setup_complete"]
+    assert_equal false, row["presentation_complete"]
+
+    session.update!(status: "closed")
+    get presale_sessions_path
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    row = props["sessions"].find { |s| s["id"] == session.id }
+    assert_equal true, row["presentation_complete"]
+  end
+
   test "destroy deletes the session and redirects to the archive" do
     sign_in
     session = presale_sessions(:one)
@@ -536,18 +539,6 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
     assert_equal [ 2 ], props["criticalities"].map { |c| c["id"] }
     assert_equal false, props["showIntro"]
-  end
-
-  test "result marks the discussed criticalities in the end summary" do
-    sign_in
-    session = presale_sessions(:one)
-    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
-      selected_criticalities: [ 1, 2 ], discussed_criticalities: [ 1 ])
-
-    get result_presale_session_path(session)
-    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
-    assert_equal [ 1, 2 ], props["criticalities"].map { |c| c["id"] }
-    assert_equal [ 1 ], props["discussed"]
   end
 
   test "update persists the selection and intro toggle via auto-save" do

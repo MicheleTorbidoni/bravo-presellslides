@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { Head, Link, router } from "@inertiajs/react"
-import { ChevronRight, ClipboardList, Plus, Trash2 } from "lucide-react"
+import { ClipboardList, Plus, Trash2 } from "lucide-react"
 import { AppShell } from "@/components/AppShell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,8 @@ type SessionRow = {
   segment_label: string | null
   status: SessionStatus
   profiled: boolean
+  setup_complete: boolean
+  presentation_complete: boolean
   created_at: string
 }
 
@@ -190,34 +192,41 @@ export default function PresaleSessionsIndex({
               return (
                 <li
                   key={session.id}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-surface"
+                  className="flex items-center gap-3 px-4 py-3"
                 >
                   <ClipboardList className="h-4 w-4 shrink-0 text-ink-muted" />
-                  <Link
-                    href={`/presale_sessions/${session.id}/debrief`}
-                    className="flex min-w-0 flex-1 items-center gap-3 no-underline"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-ink-display">
-                        {session.company_name || "(senza nome)"}
-                      </div>
-                      <div className="truncate text-xs text-ink-muted">
-                        {secondary}
-                      </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-ink-display">
+                      {session.company_name || "(senza nome)"}
                     </div>
-                    <Badge tone={badge.tone}>{badge.label}</Badge>
-                  </Link>
-                  {isActive(session) && (
-                    <Button asChild variant="secondary" size="sm">
-                      {/* Setup is shown twice in the flow (light before
-                          Questionario A, full after) and renders itself
-                          accordingly from the session's own state, so any
-                          in-progress session can always resume there. */}
-                      <Link href={`/presale_sessions/${session.id}/setup`}>
-                        Riprendi
-                      </Link>
-                    </Button>
-                  )}
+                    <div className="truncate text-xs text-ink-muted">
+                      {secondary}
+                    </div>
+                  </div>
+                  <Badge tone={badge.tone}>{badge.label}</Badge>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {/* Setup is shown twice in the flow (light before
+                        Questionario A, full after) and renders itself
+                        accordingly from the session's own state, so it's
+                        always reachable. */}
+                    <RowAction
+                      href={`/presale_sessions/${session.id}/setup`}
+                      label="Setup"
+                      enabled
+                    />
+                    <RowAction
+                      href={`/presale_sessions/${session.id}/present`}
+                      label="Presentazione"
+                      enabled={session.setup_complete}
+                      disabledHint="Completa il Setup per continuare."
+                    />
+                    <RowAction
+                      href={`/presale_sessions/${session.id}/debrief`}
+                      label="Riepilogo"
+                      enabled={session.presentation_complete}
+                      disabledHint="Completa la presentazione per continuare."
+                    />
+                  </div>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -226,14 +235,6 @@ export default function PresaleSessionsIndex({
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                  <Link
-                    href={`/presale_sessions/${session.id}/debrief`}
-                    className="no-underline"
-                    aria-hidden="true"
-                    tabIndex={-1}
-                  >
-                    <ChevronRight className="h-4 w-4 text-ink-muted" />
-                  </Link>
                 </li>
               )
             })}
@@ -300,6 +301,37 @@ function TabButton({
       {label}{" "}
       <span className="text-ink-muted">({count})</span>
     </button>
+  )
+}
+
+// A row action that's either a real navigation link (Button asChild + Inertia
+// Link) or — when the gating condition isn't met yet — a plain disabled
+// <button>. Inertia's Link renders an <a>, which has no native disabled
+// state, so a disabled action must not be a Link at all: a real <button
+// disabled> gets the existing .btn disabled:opacity-50/pointer-events-none
+// styling for free (see design-system.css) with no new CSS or primitive.
+function RowAction({
+  href,
+  label,
+  enabled,
+  disabledHint,
+}: {
+  href: string
+  label: string
+  enabled: boolean
+  disabledHint?: string
+}) {
+  if (!enabled) {
+    return (
+      <Button variant="secondary" size="sm" disabled title={disabledHint}>
+        {label}
+      </Button>
+    )
+  }
+  return (
+    <Button asChild variant="secondary" size="sm">
+      <Link href={href}>{label}</Link>
+    </Button>
   )
 }
 
