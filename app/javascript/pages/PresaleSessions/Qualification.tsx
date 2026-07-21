@@ -44,8 +44,8 @@ export default function PresaleSessionQualification({
 
   async function finish() {
     setSaving(true)
-    await apiPatch(url, { qualification_answers: qual })
-    router.visit(`/presale_sessions/${session.id}/result`)
+    await apiPatch(url, { qualification_answers: qual, status: "closed" })
+    router.visit(`/presale_sessions/${session.id}/debrief`)
   }
 
   return (

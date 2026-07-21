@@ -135,12 +135,13 @@ export default function Present({
     view.name === "flow" ? (stepsByCriticality[view.criticalityId] ?? []) : []
   const currentStep: Step | null = flowSteps[position.stepIndex] ?? null
 
-  // Reaching the closing page concludes the conversation, so the session is
-  // marked closed (persisted). Returning to the hub afterwards is allowed.
+  // Reaching the closing page is purely a view transition now — the session is
+  // marked closed later, when Questionario B is submitted (see
+  // PresaleSessions/Qualification.tsx's finish()), not here. Returning to the
+  // hub afterwards is allowed.
   const goClosing = useCallback(() => {
     setView({ name: "closing" })
-    void apiPatch(`/presale_sessions/${session.id}`, { status: "closed" })
-  }, [session.id])
+  }, [])
 
   // Completing a flow consolidates the criticality as discussed (persisted). In
   // sequence mode (hub hidden) it then starts the next enabled criticality in order,

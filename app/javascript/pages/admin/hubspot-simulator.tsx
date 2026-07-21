@@ -92,13 +92,10 @@ export default function HubspotSimulator({
 
             <div className="mt-5 flex flex-wrap gap-3">
               <Button asChild variant="secondary" size="sm">
-                <Link href={createdSession.hub_url}>
-                  Apri hub
+                <Link href="/presale_sessions">
+                  Vai all&apos;elenco sessioni
                   <ArrowRight className="h-4 w-4" />
                 </Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <Link href={createdSession.setup_url}>Apri sessione</Link>
               </Button>
             </div>
           </div>

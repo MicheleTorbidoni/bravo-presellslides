@@ -16,7 +16,6 @@ Rails.application.routes.draw do
       get :setup
       get :present
       get :qualification
-      get :result
       get :debrief
       post :recap
     end

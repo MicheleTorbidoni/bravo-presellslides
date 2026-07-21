@@ -42,7 +42,7 @@ class SessionFlowOrderTest < ApplicationSystemTestCase
     page.execute_script("arguments[0].click()", input)
   end
 
-  test "create -> Setup (light) -> Questionario A -> Setup (full) -> Present -> Chiusura -> Questionario B -> Risultati" do
+  test "create -> Setup (light) -> Questionario A -> Setup (full) -> Present -> Chiusura -> Questionario B -> Debrief" do
     react_click "Nuova sessione"
     # Match on path shape rather than looking up the latest session by
     # created_at: system tests hit a real server, and two sessions created in the
@@ -84,6 +84,7 @@ class SessionFlowOrderTest < ApplicationSystemTestCase
     assert_selector "h2", text: "Azienda"
 
     react_click "Vai al riepilogo"
-    assert_current_path result_presale_session_path(session), wait: 5
+    assert_current_path debrief_presale_session_path(session), wait: 5
+    assert_equal "closed", session.reload.status
   end
 end

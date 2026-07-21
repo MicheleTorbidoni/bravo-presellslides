@@ -5,7 +5,7 @@ class PresaleSessionsController < ApplicationController
   # show up as an "Unpermitted parameters" warning on every save.
   wrap_parameters format: []
 
-  before_action :set_session, only: %i[ setup profiling qualification result present update debrief recap destroy ]
+  before_action :set_session, only: %i[ setup profiling qualification present update debrief recap destroy ]
 
   # Sessions area. Lists the current user's pre-sale sessions; the full archive
   # (search, delete) arrives in a later milestone.
@@ -74,22 +74,6 @@ class PresaleSessionsController < ApplicationController
     }
   end
 
-  # Step 3 — now the end-of-session summary (the forward flow skips it; it's reached
-  # again only when the operator presses C → Closing → "Vai al riepilogo"). Shows the
-  # selected criticality subset with the discussed ones marked.
-  def result
-    segment = ContentConfig.segments.find { |s| s[:id] == @session.segment }
-    ids = effective_selected_ids(@session)
-    render inertia: "PresaleSessions/Result", props: {
-      session: session_detail(@session),
-      segmentLabel: segment&.dig(:label),
-      profileSteps: ContentConfig.decode_profile(@session.operational_profile),
-      criticalities: ContentConfig.criticalities.select { |c| ids.include?(c[:id]) },
-      suggested: @session.suggested_criticalities,
-      discussed: @session.discussed_criticalities
-    }
-  end
-
   # Prospect-facing context (first custom UI shown to the prospect): the criticality
   # hub + flow loop + closing page. Single Inertia page that switches views
   # client-side. Hands over the segment's criticality subset (or the full list of 13
@@ -118,6 +102,11 @@ class PresaleSessionsController < ApplicationController
   # + captured questions to edit, and a pre-composed recap body to send. Questions
   # are edited via the auto-save endpoint (update); sending happens via #recap.
   def debrief
+    # Mint the public token on first view of the debrief page (idempotent — see
+    # PresaleSession#ensure_public_token!), so the prospect's link is ready from
+    # the very first load, not just after the first recap send.
+    @session.ensure_public_token!
+
     render inertia: "PresaleSessions/Debrief", props: {
       session: session_detail(@session),
       segmentLabel: ContentConfig.segments.find { |s| s[:id] == @session.segment }&.dig(:label),
@@ -125,9 +114,7 @@ class PresaleSessionsController < ApplicationController
       discussedCriticalities: discussed_criticality_labels(@session),
       capturedQuestions: enriched_questions(@session),
       defaultRecapBody: default_recap_body(@session),
-      # Link to the prospect's public recap page — present once the recap has been
-      # sent at least once (that's when the token is minted). The operator copies it.
-      publicRecapUrl: @session.public_token && public_recap_url(token: @session.public_token)
+      publicRecapUrl: public_recap_url(token: @session.public_token)
     }
   end
 
@@ -145,7 +132,8 @@ class PresaleSessionsController < ApplicationController
     end
 
     # The prospect's recap now lives on a public, token-gated page; the email is a
-    # short cover that links to it. Mint the token on first send and keep it stable.
+    # short cover that links to it. The token is normally already minted (see
+    # #debrief) — this call is just a safety net for a direct #recap hit.
     @session.ensure_public_token!
     url = public_recap_url(token: @session.public_token)
 
@@ -197,7 +185,7 @@ class PresaleSessionsController < ApplicationController
     end
 
     # The criticalities the session will actually discuss, as ids in no particular
-    # order. Single source of truth for setup/present/result. nil selection means
+    # order. Single source of truth for setup/present. nil selection means
     # the operator never chose, so we default: the union of the prospect's HubSpot
     # suggestions and the segment+operational-profile mapping (Questionario A now
     # runs before Setup, so the profile is already known), each intersected with
@@ -235,6 +223,8 @@ class PresaleSessionsController < ApplicationController
         segment_label: ContentConfig.segments.find { |s| s[:id] == session.segment }&.dig(:label),
         status: session.status,
         profiled: session.operational_profile.present?,
+        setup_complete: session.setup_complete?,
+        presentation_complete: session.presentation_complete?,
         created_at: session.created_at.iso8601
       }
     end
