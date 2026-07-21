@@ -94,11 +94,12 @@ class QualificationTest < ApplicationSystemTestCase
     assert_equal "1500000", find("#qf-annual_turnover_amount").value
   end
 
-  test "the final button leads to the results page" do
+  test "the final button marks the session closed and leads to the debrief" do
     visit qualification_presale_session_path(@session)
 
     react_click "Vai al riepilogo"
-    assert_current_path result_presale_session_path(@session), wait: 5
+    assert_current_path debrief_presale_session_path(@session), wait: 5
+    assert_equal "closed", @session.reload.status
   end
 
   test "renders correctly at mobile width" do
