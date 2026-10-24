@@ -95,6 +95,16 @@ class SetupExtraCriticalitiesTest < ApplicationSystemTestCase
       criticalities_order: [ 9, 1 ],
       extra_criticalities: [ { id: 9, segment: "elettronica" } ]
     )
+    # Every segment folder is empty today (all art comes from criticalities/),
+    # so give C09 a temporary bitmap in both the origin segment and the
+    # session's segment: resolving to elettronica then proves the origin wins.
+    shared = Rails.root.join("content/assets/criticalities/C09-step1.png")
+    @segment_art = %w[ elettronica meccanica ].map do |segment|
+      Rails.root.join("content/assets", segment, "C09-step1.png").tap do |path|
+        FileUtils.mkdir_p(path.dirname)
+        FileUtils.cp(shared, path)
+      end
+    end
     visit present_presale_session_path(@session)
 
     10.times do
@@ -108,5 +118,7 @@ class SetupExtraCriticalitiesTest < ApplicationSystemTestCase
     # Its slides resolve on the origin segment (elettronica), not meccanica.
     assert_selector "img[src*='/elettronica/C09-step1']", wait: 5
     page.save_screenshot("tmp/screenshots/m14-extra-slide.png")
+  ensure
+    @segment_art&.each { |path| FileUtils.rm_f(path) }
   end
 end

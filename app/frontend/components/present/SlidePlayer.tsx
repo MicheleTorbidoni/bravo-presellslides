@@ -4,19 +4,29 @@
 // component just renders the current step and its active phase.
 //
 // File-driven model: a criticality is an ordered list of steps; each step has a
-// title/body (overlay, from config) and 1..N phase bitmaps shown in sequence. The
-// phase image URLs are already resolved server-side (token > segment > shared) — see
-// ContentConfig.steps_for — so this component just displays `step.phases[phaseIndex]`.
-import { useState } from "react"
+// title/body (overlay, from config) and 1..N phases shown in sequence, each a
+// bitmap or (M19) a minivideo. The phases are already resolved server-side
+// (token > segment > shared) — see ContentConfig.steps_for — so this component
+// just displays `step.phases[phaseIndex]`.
+import { useEffect, useRef, useState } from "react"
 import { PlayCircle } from "lucide-react"
 import { Stage } from "./Stage"
 import { Logo } from "./Logo"
+
+// One phase of a step, resolved server-side from the file name
+// (C<NN>-step<Y>[-<token>][.f<Z>][.audio].<png|mp4>). `audio` is true only for a
+// spoken .audio.mp4 video; every other video is muted and loops.
+export type Phase = {
+  url: string
+  kind: "image" | "video"
+  audio: boolean
+}
 
 export type Step = {
   id: string
   title: string | null
   body: string | null
-  phases: string[]
+  phases: Phase[]
   // M18: the synthetic final step of a criticality's flow. Present only on that
   // step — undefined/null on every image step and on the intro, which never
   // carries a video. embed_url is null when the configured video doesn't
@@ -36,8 +46,9 @@ export function interpolate(
     .replace(/\{\{\s*contact_name\s*\}\}/g, contactName?.trim() || "")
 }
 
-// Labelled grey dashed-box placeholder shared by SlideImage (missing bitmap) and
-// VideoSlide (video that doesn't resolve to a known embed).
+// Labelled grey dashed-box placeholder shared by SlideImage (missing bitmap),
+// SlideVideo (minivideo that fails to load) and VideoSlide (video that doesn't
+// resolve to a known embed).
 function MissingPlaceholder({ label }: { label: string }) {
   return (
     <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-bm-white/40 bg-bm-white/10">
@@ -70,6 +81,109 @@ function SlideImage({ src, name }: { src: string | undefined; name: string }) {
       className="h-full w-full object-contain"
     />
   )
+}
+
+// M19: a step/phase minivideo, autoplaying inline. Distinct from VideoSlide (M18's
+// final YouTube/Vimeo embed). Mounted with key={url} by StepMedia, so changing
+// step or phase unmounts the previous <video> — playback and audio stop with it.
+// Muted videos (the default) loop until the operator advances. Spoken (.audio)
+// videos play once with sound and rest on their last frame; if the browser
+// refuses the unmuted start (autoplay policy — the recent click/→ usually
+// suffices, but it isn't guaranteed), a button lets the operator start it.
+function SlideVideo({ phase, name }: { phase: Phase; name: string }) {
+  const ref = useRef<HTMLVideoElement>(null)
+  const [failed, setFailed] = useState(false)
+  const [blocked, setBlocked] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // React doesn't reliably reflect the `muted` prop onto the element, and
+    // browsers only honour muted autoplay when the property is actually set.
+    el.muted = !phase.audio
+    el.defaultMuted = !phase.audio
+    el.play().catch((error: unknown) => {
+      // AbortError = interrupted by unmount/navigation, not an autoplay refusal.
+      if (error instanceof DOMException && error.name === "AbortError") return
+      setBlocked(true)
+    })
+  }, [phase.audio])
+
+  if (failed) {
+    return <MissingPlaceholder label={name} />
+  }
+
+  return (
+    <div className="relative flex h-full w-full items-center justify-center">
+      <video
+        ref={ref}
+        src={phase.url}
+        autoPlay
+        playsInline
+        preload="auto"
+        muted={!phase.audio}
+        loop={!phase.audio}
+        data-audio={phase.audio ? "true" : "false"}
+        onError={() => setFailed(true)}
+        className="h-full w-full object-contain"
+      />
+      {blocked && (
+        <button
+          type="button"
+          aria-label="Avvia il video con audio"
+          onClick={(e) => {
+            // Don't also trigger the stage's onAdvanceClick.
+            e.stopPropagation()
+            const el = ref.current
+            if (!el) return
+            el.muted = false
+            void el.play().then(() => setBlocked(false)).catch(() => {})
+          }}
+          className="group absolute inset-0 flex items-center justify-center"
+        >
+          <span className="absolute inset-0 bg-black/30 transition group-hover:bg-black/45" />
+          <PlayCircle
+            className="relative h-[6cqw] w-[6cqw] text-bm-white drop-shadow-lg"
+            strokeWidth={1.5}
+          />
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Renders the current phase as a bitmap or a minivideo.
+function StepMedia({ phase, name }: { phase: Phase | undefined; name: string }) {
+  if (phase?.kind === "video") {
+    return <SlideVideo key={phase.url} phase={phase} name={name} />
+  }
+  return <SlideImage src={phase?.url} name={name} />
+}
+
+// Warms the browser cache with the next phase/step while the current one is on
+// screen, so it shows (and a video starts) without waiting. Assets are served
+// with a long immutable Cache-Control, so the real element then hits the cache.
+// Runs only in an effect — never during SSR.
+function usePreload(phase: Phase | null | undefined) {
+  const url = phase?.url
+  const kind = phase?.kind
+  useEffect(() => {
+    if (!url) return
+    if (kind === "video") {
+      const video = document.createElement("video")
+      video.muted = true
+      video.preload = "auto"
+      video.src = url
+      video.load()
+      return () => {
+        // Release the element (and its pending download) when moving on.
+        video.removeAttribute("src")
+        video.load()
+      }
+    }
+    const img = new Image()
+    img.src = url
+  }, [url, kind])
 }
 
 // Extracts the YouTube video id from an already-resolved youtube-nocookie embed
@@ -147,13 +261,18 @@ export function SlidePlayer({
   companyName,
   contactName,
   onAdvanceClick,
+  nextPhase,
 }: {
   step: Step | null
   phaseIndex: number
   companyName: string | null
   contactName: string | null
   onAdvanceClick: () => void
+  // The phase that the next advance will show, preloaded in the background.
+  nextPhase?: Phase | null
 }) {
+  usePreload(nextPhase)
+
   return (
     <Stage onClick={onAdvanceClick} className="bg-bm-green text-bm-white">
       {step ? (
@@ -208,7 +327,7 @@ function StepBody({
 
   const title = step.title ? interpolate(step.title, companyName, contactName) : null
   const body = step.body ? interpolate(step.body, companyName, contactName) : null
-  const src = step.phases[phaseIndex]
+  const phase = step.phases[phaseIndex]
   const showDots = step.phases.length > 1
 
   return (
@@ -225,7 +344,7 @@ function StepBody({
       )}
 
       <div className="mt-[1.5cqw] flex min-h-0 w-full flex-1 items-center justify-center">
-        <SlideImage src={src} name={step.id} />
+        <StepMedia phase={phase} name={step.id} />
       </div>
 
       {showDots && (
