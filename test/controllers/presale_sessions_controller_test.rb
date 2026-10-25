@@ -757,24 +757,39 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
       video_step.dig("video", "embed_url")
   end
 
-  test "present's video step is a placeholder when the configured URL doesn't resolve to an embed" do
+  test "present appends no video step when the criticality has no video" do
     sign_in
     session = presale_sessions(:one)
     session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
 
-    # content/config/videos.json currently only holds textual placeholder URLs
-    # that happen to be syntactically valid YouTube links (so VideoEmbed.url
-    # never actually returns nil today) — stub it to exercise the placeholder
-    # branch the player falls back to once real content author sets url: null.
+    # Stubbed rather than read from videos.json, which is content that changes
+    # over time: only criticality 1 has a video here.
+    only_c01 = ->(criticality_id:, segment:, operational_profile:) {
+      "https://youtu.be/deep-dive" if criticality_id == 1
+    }
+    ContentConfig.stub(:video_url_for, only_c01) { get present_presale_session_path(session) }
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    assert_equal "C01-video", props.dig("stepsByCriticality", "1").last["id"]
+    # Every other criticality ends on its last slide: no video step anywhere.
+    props["stepsByCriticality"].except("1").each_value do |steps|
+      assert(steps.none? { |s| s["video"] }, "unexpected video step")
+    end
+  end
+
+  test "present appends no video step when the configured URL doesn't resolve to an embed" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
     VideoEmbed.stub(:url, nil) do
       get present_presale_session_path(session)
     end
     assert_response :success
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
 
-    video_step = props.dig("stepsByCriticality", "1").last
-    assert_equal "C01-video", video_step["id"]
-    assert_nil video_step.dig("video", "embed_url")
+    assert(props.dig("stepsByCriticality", "1").none? { |s| s["video"] })
   end
 
   test "update persists extra criticalities via the auto-save endpoint" do
