@@ -45,3 +45,7 @@ node_modules
 .DS_Store
 
 /config/credentials/staging.key
+
+# Source videos for the step minivideos: converted to .mp4 by bin/convert-minivideo,
+# never committed (M19).
+content/assets/**/*.mov

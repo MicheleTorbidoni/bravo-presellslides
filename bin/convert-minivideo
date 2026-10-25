@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Converts step minivideo sources (.mov) into web-ready .mp4 files (M19).
+#
+#   bin/convert-minivideo content/assets/criticalities/C04-step3.mov [more.mov …]
+#   bin/convert-minivideo -f content/assets/criticalities/C04-step3.mov   # overwrite
+#
+# Each output is written next to its source with the same logical name
+# (C04-step3.mov → C04-step3.mp4), so it slots straight into the file-driven
+# naming grammar: C<NN>-step<Y>[-<token>][.f<Z>][.audio].<png|mp4>.
+#
+# H.264 + yuv420p (plays everywhere, Safari included), at most 1920px wide,
+# +faststart (the index sits at the start, so playback begins before the whole
+# file has arrived). The audio track is dropped unless the name carries the
+# .audio suffix (C04-step3.audio.mov → spoken video, AAC audio kept).
+#
+# The .mov sources are git-ignored and must never be committed.
+# Requires ffmpeg (macOS: brew install ffmpeg).
+set -euo pipefail
+
+CRF="${CRF:-26}" # lower = better quality, bigger file; target is 1–3 MB per clip
+
+usage() {
+  echo "Usage: bin/convert-minivideo [-f] <file.mov> [file.mov …]" >&2
+  echo "  -f   overwrite an existing .mp4" >&2
+  echo "  CRF=<n> to tune quality/size (default 26)" >&2
+}
+
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  echo "Error: ffmpeg is not installed." >&2
+  echo "Install it with: brew install ffmpeg" >&2
+  exit 1
+fi
+
+force=0
+if [[ "${1:-}" == "-f" ]]; then
+  force=1
+  shift
+fi
+
+if [[ $# -eq 0 ]]; then
+  usage
+  exit 1
+fi
+
+human_size() {
+  local bytes
+  bytes=$(stat -f%z "$1" 2>/dev/null || stat -c%s "$1")
+  awk -v b="$bytes" 'BEGIN { printf "%.1f MB", b / 1048576 }'
+}
+
+status=0
+for src in "$@"; do
+  if [[ ! -f "$src" ]]; then
+    echo "Skip: $src does not exist." >&2
+    status=1
+    continue
+  fi
+  if [[ "${src##*.}" != "mov" ]]; then
+    echo "Skip: $src is not a .mov source." >&2
+    status=1
+    continue
+  fi
+
+  out="${src%.mov}.mp4"
+  if [[ -e "$out" && $force -eq 0 ]]; then
+    echo "Skip: $out already exists (use -f to overwrite)." >&2
+    status=1
+    continue
+  fi
+
+  # .audio is the last piece before the extension: keep the audio only then.
+  if [[ "$(basename "${src%.mov}")" == *.audio ]]; then
+    audio_args=(-c:a aac -b:a 128k)
+    mode="with audio"
+  else
+    audio_args=(-an)
+    mode="muted"
+  fi
+
+  echo "→ $src ($mode)"
+  ffmpeg -hide_banner -loglevel error -y -i "$src" \
+    -c:v libx264 -preset slow -crf "$CRF" -pix_fmt yuv420p \
+    -vf "scale='min(1920,iw)':-2" \
+    "${audio_args[@]}" \
+    -movflags +faststart \
+    "$out"
+  echo "  $(human_size "$src") → $(human_size "$out")  $out"
+done
+
+exit $status

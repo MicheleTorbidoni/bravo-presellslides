@@ -6,7 +6,11 @@ import { useCallback, useEffect, useState } from "react"
 import { Head, router } from "@inertiajs/react"
 import { apiPatch } from "@/lib/api"
 import { Hub, type Criticality } from "@/components/present/Hub"
-import { SlidePlayer, type Step } from "@/components/present/SlidePlayer"
+import {
+  SlidePlayer,
+  type Phase,
+  type Step,
+} from "@/components/present/SlidePlayer"
 import { QuestionCapture } from "@/components/present/QuestionCapture"
 import { Closing } from "@/components/present/Closing"
 
@@ -134,6 +138,14 @@ export default function Present({
   const flowSteps =
     view.name === "flow" ? (stepsByCriticality[view.criticalityId] ?? []) : []
   const currentStep: Step | null = flowSteps[position.stepIndex] ?? null
+
+  // The phase the next advance will show (intro or flow), so the player can
+  // preload it — null at the end of the sequence.
+  const activeSteps = view.name === "intro" ? introSteps : flowSteps
+  const nextPosition = advancePosition(activeSteps, position)
+  const nextPhase: Phase | null = nextPosition
+    ? (activeSteps[nextPosition.stepIndex]?.phases[nextPosition.phaseIndex] ?? null)
+    : null
 
   // Reaching the closing page is purely a view transition now — the session is
   // marked closed later, when Questionario B is submitted (see
@@ -310,6 +322,7 @@ export default function Present({
           companyName={session.company_name}
           contactName={session.contact_name}
           onAdvanceClick={advance}
+          nextPhase={nextPhase}
         />
       )}
 
@@ -330,6 +343,7 @@ export default function Present({
           companyName={session.company_name}
           contactName={session.contact_name}
           onAdvanceClick={advance}
+          nextPhase={nextPhase}
         />
       )}
 
