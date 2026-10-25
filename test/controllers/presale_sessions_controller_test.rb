@@ -463,7 +463,7 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
 
   # ----- Setup: criticality selection + intro toggle -----
 
-  test "setup defaults the criticality selection to the whole segment subset" do
+  test "setup lists the whole catalogue with nothing enabled by default" do
     sign_in
     session = presale_sessions(:one)
     session.update!(segment: "meccanica")
@@ -472,60 +472,39 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
 
-    # No suggestions and no explicit choice → every criticality of the segment.
-    assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], props["selectedCriticalities"].sort
+    # Every criticality is selectable whatever the segment…
+    assert_equal ContentConfig.criticalities.map { |c| c[:id] }, props["criticalities"].map { |c| c["id"] }
+    # …but none is enabled until the operator chooses (no HubSpot suggestions here).
+    assert_equal [], props["selectedCriticalities"]
     assert_equal true, props["showIntro"]
     assert_equal [], props["suggested"]
-    # The per-segment map lets the client re-render the list as the segment changes.
-    assert props["criticalitiesBySegment"].key?("meccanica")
+    # The per-segment map only drives the "Tipica del segmento" hint.
+    assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], props["segmentCriticalities"]["meccanica"]
   end
 
-  test "setup defaults the selection to the prospect's suggestions when present" do
+  test "setup pre-enables only the prospect's HubSpot suggestions, even outside the segment" do
     sign_in
     session = presale_sessions(:one)
-    session.update!(segment: "meccanica", suggested_criticalities: [ 3, 7 ])
-
-    get setup_presale_session_path(session)
-    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
-    assert_equal [ 3, 7 ], props["selectedCriticalities"].sort
-    assert_equal [ 3, 7 ], props["suggested"]
-  end
-
-  test "setup's default selection unions HubSpot suggestions with the segment+profile mapping, badge stays HubSpot-only" do
-    sign_in
-    session = presale_sessions(:one)
+    # 9 is not a typical meccanica criticality, yet it's selectable and pre-enabled.
     session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
-      suggested_criticalities: [ 1 ])
-
-    # Row for this exact profile maps to criticality 2 only; a second row (a
-    # different profile of the same segment) brings 1 into the segment's overall
-    # subset so the HubSpot∩segment intersection isn't emptied by the stub.
-    fixture = [
-      { segment: "meccanica", operationalProfile: "ho-excel-bom-bom1", criticalities: [ 2 ] },
-      { segment: "meccanica", operationalProfile: "other-profile", criticalities: [ 1 ] }
-    ]
-    ContentConfig.stub :mappings, fixture do
-      get setup_presale_session_path(session)
-      assert_response :success
-      props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
-
-      # 1 comes from HubSpot, 2 from the segment+profile mapping — neither alone
-      # would produce this pair.
-      assert_equal [ 1, 2 ], props["selectedCriticalities"].sort
-      # The "suggested by prospect" badge stays HubSpot-only.
-      assert_equal [ 1 ], props["suggested"]
-    end
-  end
-
-  test "setup honours an explicit selection, clamped to the segment" do
-    sign_in
-    session = presale_sessions(:one)
-    # 99 is not a meccanica criticality → dropped; the rest is kept.
-    session.update!(segment: "meccanica", selected_criticalities: [ 1, 7, 99 ])
+      suggested_criticalities: [ 3, 9 ])
 
     get setup_presale_session_path(session)
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
-    assert_equal [ 1, 7 ], props["selectedCriticalities"].sort
+    # The operational profile no longer adds anything to the default selection.
+    assert_equal [ 3, 9 ], props["selectedCriticalities"].sort
+    assert_equal [ 3, 9 ], props["suggested"]
+  end
+
+  test "setup honours an explicit selection, clamped to the catalogue only" do
+    sign_in
+    session = presale_sessions(:one)
+    # 9 is outside meccanica's typical subset → kept; 99 doesn't exist → dropped.
+    session.update!(segment: "meccanica", selected_criticalities: [ 1, 9, 99 ])
+
+    get setup_presale_session_path(session)
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+    assert_equal [ 1, 9 ], props["selectedCriticalities"].sort
   end
 
   test "present uses the operator's selected subset and the intro toggle" do
@@ -570,7 +549,7 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
 
   # ----- Setup: criticality ordering + hub toggle -----
 
-  test "setup defaults the criticality order to the segment's default order and shows the hub" do
+  test "setup defaults the criticality order to the catalogue order and shows the hub" do
     sign_in
     session = presale_sessions(:one)
     session.update!(segment: "meccanica")
@@ -579,23 +558,22 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
 
-    default_order = ContentConfig.criticalities_for_segment(segment: "meccanica").map { |c| c[:id] }
-    assert_equal default_order, props["criticalitiesOrder"]
+    assert_equal ContentConfig.criticalities.map { |c| c[:id] }, props["criticalitiesOrder"]
     assert_equal true, props["showHub"]
   end
 
-  test "setup honours a saved order, clamped to the segment and appending new ids" do
+  test "setup honours a saved order, clamped to the catalogue and appending new ids" do
     sign_in
     session = presale_sessions(:one)
-    # 99 is not a meccanica criticality → dropped; the remaining segment ids that
-    # aren't in the saved order are appended in default order.
-    session.update!(segment: "meccanica", criticalities_order: [ 7, 1, 99 ])
+    # 99 doesn't exist → dropped; 9 (not typical of meccanica) is kept; every
+    # other id not in the saved order is appended in catalogue order.
+    session.update!(segment: "meccanica", criticalities_order: [ 9, 1, 99 ])
 
     get setup_presale_session_path(session)
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
 
-    default_order = ContentConfig.criticalities_for_segment(segment: "meccanica").map { |c| c[:id] }
-    expected = [ 7, 1 ] + (default_order - [ 7, 1 ])
+    default_order = ContentConfig.criticalities.map { |c| c[:id] }
+    expected = [ 9, 1 ] + (default_order - [ 9, 1 ])
     assert_equal expected, props["criticalitiesOrder"]
   end
 
@@ -626,53 +604,13 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal false, session.show_hub
   end
 
-  # ----- Setup: extra criticalities borrowed from other segments (M14) -----
-  # meccanica = [1,2,3,4,7,8,10]; criticality 9 is elettronica's, not meccanica's.
+  # ----- Criticalities decoupled from the segment (Fase 8) -----
 
-  test "setup exposes the session's extra criticalities" do
-    sign_in
-    session = presale_sessions(:one)
-    session.update!(segment: "meccanica",
-      extra_criticalities: [ { id: 9, segment: "elettronica" } ])
-
-    get setup_presale_session_path(session)
-    assert_response :success
-    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
-    assert_equal [ { "id" => 9, "segment" => "elettronica" } ], props["extraCriticalities"]
-  end
-
-  test "setup keeps an out-of-segment id when it is a registered extra" do
-    sign_in
-    session = presale_sessions(:one)
-    session.update!(segment: "meccanica",
-      selected_criticalities: [ 1, 9 ], criticalities_order: [ 9, 1 ],
-      extra_criticalities: [ { id: 9, segment: "elettronica" } ])
-
-    get setup_presale_session_path(session)
-    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
-    # The extra (9) is not in meccanica's subset but survives because it's registered.
-    assert_includes props["selectedCriticalities"], 9
-    assert_equal 9, props["criticalitiesOrder"].first
-  end
-
-  test "setup drops an out-of-segment id that is not a registered extra" do
-    sign_in
-    session = presale_sessions(:one)
-    session.update!(segment: "meccanica", selected_criticalities: [ 1, 9 ])
-
-    get setup_presale_session_path(session)
-    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
-    # 9 is not a meccanica criticality and not registered as an extra → clamped away.
-    refute_includes props["selectedCriticalities"], 9
-    refute_includes props["criticalitiesOrder"], 9
-  end
-
-  test "present includes the extra criticality in the ordered subset" do
+  test "present includes a criticality outside the segment's typical subset, in order" do
     sign_in
     session = presale_sessions(:one)
     session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
-      selected_criticalities: [ 1, 9 ], criticalities_order: [ 9, 1 ],
-      extra_criticalities: [ { id: 9, segment: "elettronica" } ])
+      selected_criticalities: [ 1, 9 ], criticalities_order: [ 9, 1 ])
 
     get present_presale_session_path(session)
     assert_response :success
@@ -680,17 +618,17 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ 9, 1 ], props["criticalities"].map { |c| c["id"] }
   end
 
-  test "present resolves an extra's slides against its origin segment" do
+  test "present resolves every criticality's slides against the session's segment" do
     sign_in
     session = presale_sessions(:one)
+    # A legacy extra (Fase 4) is now ignored: its slides follow the session segment.
     session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
       selected_criticalities: [ 1, 9 ],
       extra_criticalities: [ { id: 9, segment: "elettronica" } ])
 
-    # The per-segment art is content (and today every segment folder is empty),
-    # so ContentConfig.steps_for is stubbed to echo back the segment it was
-    # asked to resolve against — content_config_test.rb covers the real
-    # file resolution with controlled fixtures.
+    # ContentConfig.steps_for is stubbed to echo back the segment it was asked to
+    # resolve against — content_config_test.rb covers the real file resolution
+    # (segment art first, shared fallback) with controlled fixtures.
     echo = ->(criticality_id:, segment:, operational_profile:) {
       [ { id: format("C%02d-step1", criticality_id), title: nil, body: nil,
           phases: [ { url: "/presentation_assets/#{segment}/x.png", kind: "image", audio: false } ] } ]
@@ -698,11 +636,7 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     ContentConfig.stub(:steps_for, echo) { get present_presale_session_path(session) }
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
 
-    # Criticality 9's slides resolve on elettronica (its origin), not on meccanica.
-    first_phase = props.dig("stepsByCriticality", "9", 0, "phases", 0, "url")
-    assert_includes first_phase, "/elettronica/"
-    refute_includes first_phase, "/meccanica/"
-    # A regular meccanica criticality still resolves against the session segment.
+    assert_includes props.dig("stepsByCriticality", "9", 0, "phases", 0, "url"), "/meccanica/"
     assert_includes props.dig("stepsByCriticality", "1", 0, "phases", 0, "url"), "/meccanica/"
   end
 
@@ -740,23 +674,6 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
       video_step.dig("video", "embed_url")
   end
 
-  test "present resolves an extra's video against its origin segment, not the session's" do
-    sign_in
-    session = presale_sessions(:one)
-    session.update!(segment: "elettronica", operational_profile: "ho-excel-bom-bom1",
-      selected_criticalities: [ 1 ], extra_criticalities: [ { id: 1, segment: "meccanica" } ])
-
-    stub_video_url_for { get present_presale_session_path(session) }
-    assert_response :success
-    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
-
-    # The extra's video resolves against its origin segment (meccanica), not
-    # the session's own segment (elettronica).
-    video_step = props.dig("stepsByCriticality", "1").last
-    assert_equal "https://www.youtube-nocookie.com/embed/c1-meccanica-ho-excel-bom-bom1",
-      video_step.dig("video", "embed_url")
-  end
-
   test "present appends no video step when the criticality has no video" do
     sign_in
     session = presale_sessions(:one)
@@ -790,18 +707,5 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
 
     assert(props.dig("stepsByCriticality", "1").none? { |s| s["video"] })
-  end
-
-  test "update persists extra criticalities via the auto-save endpoint" do
-    sign_in
-    session = presale_sessions(:one)
-
-    patch presale_session_path(session),
-          params: { extra_criticalities: [ { id: 9, segment: "elettronica" } ] },
-          as: :json
-
-    assert_response :success
-    assert_equal [ { "id" => 9, "segment" => "elettronica" } ],
-      session.reload.extra_criticalities
   end
 end

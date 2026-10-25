@@ -137,7 +137,7 @@ export default function PresaleSessionProfiling({
       operational_profile: profile,
       qualification_answers: qual,
     })
-    router.visit(`/presale_sessions/${session.id}/setup`)
+    router.visit(`/presale_sessions/${session.id}/present`)
   }
 
   function renderCriticality(qid: string) {
@@ -202,7 +202,7 @@ export default function PresaleSessionProfiling({
           <h1>Profilazione</h1>
           <p className="mt-1">
             Schermata interna — non mostrata al prospect. Le domande in{" "}
-            <span className="text-accent">evidenza</span> guidano le criticità;
+            <span className="text-accent">evidenza</span> personalizzano le slide delle criticità;
             le altre servono al commerciale.
           </p>
         </div>

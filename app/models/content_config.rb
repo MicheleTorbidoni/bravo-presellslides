@@ -169,8 +169,10 @@ module ContentConfig
     # segment-driven only: the operational_profile no longer selects *which*
     # criticalities appear (it only varies the content *inside* each flow — see
     # steps_for / video_url_for). Returns the matching criticality hashes
-    # ({ id:, label: }), or [] for a blank/unknown segment (predictable fallback —
-    # the operator then chooses freely in the hub).
+    # ({ id:, label: }), or [] for a blank/unknown segment. Since Fase 8 this no
+    # longer restricts which criticalities a session may present (every one is
+    # selectable for every segment): it only drives Setup's "Tipica del segmento"
+    # hint.
     def criticalities_for_segment(segment:)
       return [] if segment.blank?
 
@@ -178,18 +180,6 @@ module ContentConfig
                     .flat_map { |m| m[:criticalities] }
                     .to_set
       criticalities.select { |c| ids.include?(c[:id]) }
-    end
-
-    # Resolves the single mapping row for this exact segment + operational_profile
-    # pair (unlike criticalities_for_segment, which unions every profile of the
-    # segment) — used to sharpen Setup's default criticality suggestion beyond the
-    # HubSpot signal. Returns the row's criticality ids as-is, or [] when
-    # segment/profile is blank or no row matches.
-    def criticalities_for(segment:, operational_profile:)
-      return [] if segment.blank? || operational_profile.blank?
-
-      mappings.find { |m| m[:segment] == segment && m[:operationalProfile] == operational_profile }
-              &.fetch(:criticalities, []) || []
     end
 
     # Turns a composite operational_profile key (e.g. "ho-excel-bom-bom1") into a

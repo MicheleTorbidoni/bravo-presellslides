@@ -65,6 +65,12 @@ class PresentFlowTest < ApplicationSystemTestCase
 
   # Dispatch a keydown on window directly so it reaches the global listener
   # regardless of the focused element in headless Chrome.
+  # Clicks the enable/disable checkbox of the criticality row labelled `label`.
+  def toggle(label)
+    input = find("li", text: label).find("input[type='checkbox']")
+    page.execute_script("arguments[0].click()", input)
+  end
+
   def press_key(key)
     page.execute_script(
       "window.dispatchEvent(new KeyboardEvent('keydown', { key: '#{key}', bubbles: true }))"
@@ -236,33 +242,33 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_no_text "Dove fa più difficoltà la tua azienda?"
   end
 
-  # The outer setup block already sets operational_profile, so this exercises the
-  # "full" Setup pass (after Questionario A) — see setup_stages_test.rb for the
-  # "light" pass (before it).
-  test "setup lists the segment criticalities and intro toggle, then proceeds" do
+  test "setup lists every criticality, nothing enabled, and proceeds to profiling" do
     @session.update!(segment: "meccanica")
     visit setup_presale_session_path(@session)
 
-    # The criticality list (segment-driven) and the intro toggle are present.
+    # The whole catalogue is listed whatever the segment, with the intro toggle.
     assert_text "Criticità da discutere"
     assert_text "Tempi di produzione non raccolti"
+    assert_selector "li", text: "Tipica del segmento", minimum: 1
     assert_text "Mostra l'introduzione"
+    assert_equal ContentConfig.criticalities.size, all("button[aria-label='Trascina per riordinare']").size
+    assert_no_selector "li input[type='checkbox']:checked"
     page.save_screenshot("tmp/screenshots/setup.png")
 
-    # Proceeding with the defaults (all enabled) persists the explicit selection.
+    # Nothing is enabled by default → the gate asks for at least one.
     react_click "Avanti"
-    assert_current_path present_presale_session_path(@session), wait: 5
-    assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], @session.reload.selected_criticalities.sort
+    assert_text "Abilita almeno una criticità per continuare."
+
+    toggle "Tempi di produzione non raccolti"
+    react_click "Avanti"
+    assert_current_path profiling_presale_session_path(@session), wait: 5
+    assert_equal [ 1 ], @session.reload.selected_criticalities
   end
 
-  # Full pass again (operational_profile set in the outer setup block).
-  test "setup shows drag handles, the hub toggle, and reorders persist on proceed" do
+  test "setup shows drag handles and both presentation toggles" do
     @session.update!(segment: "meccanica")
     visit setup_presale_session_path(@session)
 
-    assert_text "Criticità da discutere"
-    assert_text "Tempi di produzione non raccolti"
-    # Both global toggles are present after the relabel + the new hub toggle.
     assert_text "Mostra l'introduzione all'inizio"
     assert_text "Mostra l'hub tra le criticità"
     # Each row carries a drag handle (its own accessible button).

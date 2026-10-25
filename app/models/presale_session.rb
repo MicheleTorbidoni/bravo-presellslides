@@ -25,14 +25,41 @@ class PresaleSession < ApplicationRecord
     public_token
   end
 
+  # The criticalities this session will present, as ids in no particular order.
+  # Every criticality is selectable for every segment (the segment↔criticality
+  # mapping in mappings.json only drives the "Tipica del segmento" hint in Setup).
+  # nil selection means the operator never chose: default to the prospect's
+  # HubSpot suggestions, else nothing. An explicit selection (including []) is
+  # honoured, clamped to the known catalogue so stale ids can't leak through.
+  def effective_selected_criticalities
+    known = ContentConfig.criticalities.map { |c| c[:id] }
+    (selected_criticalities.nil? ? suggested_criticalities : selected_criticalities) & known
+  end
+
+  # The full, ordered list of criticality ids (enabled and disabled) driving both
+  # the Setup list and the presentation sequence: the saved order, clamped to the
+  # catalogue, with any id not yet in it appended in canonical order.
+  def effective_criticalities_order
+    known = ContentConfig.criticalities.map { |c| c[:id] }
+    saved = (criticalities_order || []) & known
+    saved + (known - saved)
+  end
+
+  # The enabled criticalities ({ id:, label: }) in the operator's chosen order.
+  def presented_criticalities
+    ids = effective_selected_criticalities
+    by_id = ContentConfig.criticalities.index_by { |c| c[:id] }
+    effective_criticalities_order.select { |id| ids.include?(id) }.map { |id| by_id[id] }
+  end
+
   # Whether an optional follow-up appointment with a salesperson has been set.
   def appointment?
     appointment_at.present?
   end
 
-  # Whether Setup has gathered everything needed to move on to the
-  # presentation — the same gate Setup.tsx's own advance() checks before
-  # letting the full pass proceed into Present. Drives the "Presentazione" row
+  # Whether Setup and Questionario A have gathered everything needed to move on
+  # to the presentation: Setup.tsx's own gate (segment + at least one enabled
+  # criticality) plus a completed operational profile. Drives the "Presentazione" row
   # action's enabled/disabled state on the sessions list.
   def setup_complete?
     segment.present? && operational_profile.present? && selected_criticalities.present?

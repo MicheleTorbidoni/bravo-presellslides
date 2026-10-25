@@ -21,10 +21,9 @@ class PresaleSessionsController < ApplicationController
     redirect_to setup_presale_session_path(session)
   end
 
-  # Step 1 of the internal flow: prospect data, industrial segment, the criticality
-  # subset to discuss. Shown twice — see the Setup props/comment below — once
-  # "light" before Questionario A, once "full" after it, so the operator refines
-  # the selection once the technical answers are known.
+  # Step 2 of the internal flow (Questionario A), reached from Setup. Its
+  # "Avanti" goes straight into the presentation: every presentation setting was
+  # already chosen in Setup.
   def profiling
     render inertia: "PresaleSessions/Profiling", props: {
       session: session_detail(@session),
@@ -34,28 +33,20 @@ class PresaleSessionsController < ApplicationController
     }
   end
 
-  # Setup is shown twice in the flow, at the same URL, rendering more or less of
-  # itself depending on whether Questionario A has run yet (operational_profile
-  # present in session_detail's payload):
-  #   - "light" (before Questionario A): company/contact/segment + a plain
-  #     criticality checklist (no reorder, no cross-segment extras, no intro/hub
-  #     toggles, criticality selection optional) — just enough to know who's on
-  #     the call and route into the questionnaire.
-  #   - "full" (after Questionario A, i.e. operational_profile is set): every
-  #     section, exactly as before this revision, criticality selection required.
-  # The client decides which mode to render from session.operational_profile;
-  # criticalitiesBySegment lets it re-render the list as the operator switches
-  # segment without a round-trip; selectedCriticalities is the effective
-  # (already-defaulted) selection, sharpened by the operational profile once
-  # Questionario A has supplied one (see effective_selected_ids).
+  # Step 1 of the internal flow: prospect data, industrial segment, and the full
+  # presentation configuration — which criticalities to show (always the whole
+  # catalogue, independent of the segment), their order, and the intro/hub
+  # toggles. segmentCriticalities carries, per segment, the ids mappings.json
+  # associates with it, so the client can flag them as "Tipica del segmento" as
+  # the operator switches segment without a round-trip.
   def setup
     render inertia: "PresaleSessions/Setup", props: {
       session: session_detail(@session),
       segments: ContentConfig.segments,
-      criticalitiesBySegment: ContentConfig.segments.to_h { |s| [ s[:id], ContentConfig.criticalities_for_segment(segment: s[:id]) ] },
-      selectedCriticalities: effective_selected_ids(@session),
-      criticalitiesOrder: effective_criticalities_order(@session),
-      extraCriticalities: @session.extra_criticalities,
+      criticalities: ContentConfig.criticalities,
+      segmentCriticalities: ContentConfig.segments.to_h { |s| [ s[:id], ContentConfig.criticalities_for_segment(segment: s[:id]).map { |c| c[:id] } ] },
+      selectedCriticalities: @session.effective_selected_criticalities,
+      criticalitiesOrder: @session.effective_criticalities_order,
       suggested: @session.suggested_criticalities,
       showIntro: @session.show_intro,
       showHub: @session.show_hub
@@ -76,14 +67,11 @@ class PresaleSessionsController < ApplicationController
 
   # Prospect-facing context (first custom UI shown to the prospect): the criticality
   # hub + flow loop + closing page. Single Inertia page that switches views
-  # client-side. Hands over the segment's criticality subset (or the full list of 13
-  # as a predictable fallback when the segment is unknown/blank) plus the
-  # criticalities already discussed, so completed ones render as such.
+  # client-side. Hands over the operator's enabled criticalities in their chosen
+  # order (or the full list of 13 as a predictable fallback when none is enabled)
+  # plus the criticalities already discussed, so completed ones render as such.
   def present
-    # Enabled criticalities, in the operator's chosen order (drag-and-drop in setup).
-    ids = effective_selected_ids(@session)
-    by_id = ContentConfig.criticalities.index_by { |c| c[:id] }
-    relevant = effective_criticalities_order(@session).select { |id| ids.include?(id) }.filter_map { |id| by_id[id] }
+    relevant = @session.presented_criticalities
     render inertia: "Present", props: {
       session: present_session(@session),
       criticalities: relevant.presence || ContentConfig.criticalities,
@@ -169,52 +157,6 @@ class PresaleSessionsController < ApplicationController
       @session = Current.user.presale_sessions.find(params[:id])
     end
 
-    # Maps each extra criticality's id to the segment it was borrowed from, so the
-    # slides/video/badge resolve against the origin segment rather than the session's.
-    def extra_segment_by_id(session)
-      Array(session.extra_criticalities).to_h { |e| [ e["id"].to_i, e["segment"] ] }
-    end
-
-    # The ids a session may discuss: its segment subset plus the manually-added
-    # extras from other segments, in canonical order (segment first, then extras not
-    # already in the segment). Extras only exist once the operator adds them, so an
-    # unstarted session collapses to the plain segment subset.
-    def allowed_ids(session)
-      segment_ids = ContentConfig.criticalities_for_segment(segment: session.segment).map { |c| c[:id] }
-      segment_ids + (extra_segment_by_id(session).keys - segment_ids)
-    end
-
-    # The criticalities the session will actually discuss, as ids in no particular
-    # order. Single source of truth for setup/present. nil selection means
-    # the operator never chose, so we default: the union of the prospect's HubSpot
-    # suggestions and the segment+operational-profile mapping (Questionario A now
-    # runs before Setup, so the profile is already known), each intersected with
-    # the segment, else the whole segment subset. An explicit selection (including
-    # []) is honoured, but always clamped to the allowed ids (segment ∪ extras) so
-    # a later segment change can't leave stale ids behind.
-    def effective_selected_ids(session)
-      segment_ids = ContentConfig.criticalities_for_segment(segment: session.segment).map { |c| c[:id] }
-      return session.selected_criticalities & allowed_ids(session) unless session.selected_criticalities.nil?
-
-      hubspot = session.suggested_criticalities & segment_ids
-      profile_mapped = ContentConfig.criticalities_for(
-        segment: session.segment, operational_profile: session.operational_profile
-      ) & segment_ids
-      suggested = hubspot | profile_mapped
-      suggested.presence || segment_ids
-    end
-
-    # The full, ordered list of the session's criticality ids (enabled and disabled),
-    # used to drive both the setup list order and the presentation sequence. The saved
-    # order is honoured but clamped to the allowed ids (segment ∪ extras); any allowed
-    # id not yet in the saved order (new content, added extra, or a never-reordered
-    # session) is appended in canonical order.
-    def effective_criticalities_order(session)
-      allowed = allowed_ids(session)
-      saved = (session.criticalities_order || []) & allowed
-      saved + (allowed - saved)
-    end
-
     def session_summary(session)
       {
         id: session.id,
@@ -258,18 +200,15 @@ class PresaleSessionsController < ApplicationController
     # can look up the steps for whichever criticality the operator enters. Each
     # criticality's steps (and their phases) are discovered from the bitmaps and
     # resolved against this session's segment + operational profile (token/segment
-    # override > shared default) — see ContentConfig.steps_for. Steps with no
+    # override > shared default) — see ContentConfig.steps_for. Any criticality
+    # works for any segment: without segment art it falls back to the shared one. Steps with no
     # bitmap simply have no phase URLs and the player shows a placeholder. When
     # the criticality has a deep-dive video (content/config/videos.json), a
     # synthetic video step (M18) is appended last, resolved against the same
     # segment context; criticalities without one end on their last slide.
     def steps_by_criticality(session)
-      extra_by_id = extra_segment_by_id(session)
+      segment = session.segment
       ContentConfig.criticalities.to_h do |c|
-        # Extras resolve against their origin segment; everything else against
-        # the session's segment. The operational profile stays the session's
-        # (decision-tree tokens are global — no per-origin-segment profiling).
-        segment = extra_by_id[c[:id]] || session.segment
         steps = ContentConfig.steps_for(
           criticality_id: c[:id], segment: segment,
           operational_profile: session.operational_profile
@@ -359,7 +298,6 @@ class PresaleSessionsController < ApplicationController
         selected_criticalities: [],
         criticalities_order: [],
         discussed_criticalities: [],
-        extra_criticalities: [ [ :id, :segment ] ],
         captured_questions: [ :id, :text, :criticality_id, :slide_id, :asked_at ],
         qualification_answers: [ *qa[:scalar], qa[:multi_select].index_with { [] } ]
       )
