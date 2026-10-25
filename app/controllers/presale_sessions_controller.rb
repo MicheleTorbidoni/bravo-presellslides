@@ -259,9 +259,10 @@ class PresaleSessionsController < ApplicationController
     # criticality's steps (and their phases) are discovered from the bitmaps and
     # resolved against this session's segment + operational profile (token/segment
     # override > shared default) — see ContentConfig.steps_for. Steps with no
-    # bitmap simply have no phase URLs and the player shows a placeholder. A
+    # bitmap simply have no phase URLs and the player shows a placeholder. When
+    # the criticality has a deep-dive video (content/config/videos.json), a
     # synthetic video step (M18) is appended last, resolved against the same
-    # segment context, so every criticality ends on the deep-dive video.
+    # segment context; criticalities without one end on their last slide.
     def steps_by_criticality(session)
       extra_by_id = extra_segment_by_id(session)
       ContentConfig.criticalities.to_h do |c|
@@ -273,27 +274,31 @@ class PresaleSessionsController < ApplicationController
           criticality_id: c[:id], segment: segment,
           operational_profile: session.operational_profile
         )
-        [ c[:id], steps + [ video_step_for(c[:id], segment: segment, session: session) ] ]
+        video_step = video_step_for(c[:id], segment: segment, session: session)
+        [ c[:id], video_step ? steps + [ video_step ] : steps ]
       end
     end
 
     # The synthetic final step of a criticality's flow: no title/body/bitmap
     # phases, just the deep-dive video resolved with the exact same logic and
     # context already used by the recap (ContentConfig.video_url_for +
-    # VideoEmbed.url — see PublicRecapsController#recap_criticality). embed_url
-    # is nil when the configured URL doesn't resolve to a known embed; the
-    # player then shows a placeholder instead of the video.
+    # VideoEmbed.url — see PublicRecapsController#recap_criticality). Returns
+    # nil — no video step at all — when the criticality has no video in this
+    # context or its URL doesn't resolve to a known YouTube/Vimeo embed.
     def video_step_for(criticality_id, segment:, session:)
       video_url = ContentConfig.video_url_for(
         criticality_id: criticality_id, segment: segment,
         operational_profile: session.operational_profile
       )
+      embed_url = VideoEmbed.url(video_url)
+      return nil if embed_url.nil?
+
       {
         id: format("C%02d-video", criticality_id),
         title: nil,
         body: nil,
         phases: [],
-        video: { embed_url: VideoEmbed.url(video_url) }
+        video: { embed_url: embed_url }
       }
     end
 

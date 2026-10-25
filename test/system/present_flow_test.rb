@@ -81,13 +81,12 @@ class PresentFlowTest < ApplicationSystemTestCase
   end
 
   # Advances through a criticality's image steps until its trailing M18 video
-  # step shows (either the click-to-play button or the "not available"
-  # placeholder) — polling rather than a hard-coded press count, since the step
-  # count is segment-driven (meccanica has an extra step4 the shared set lacks).
+  # step shows (the click-to-play button) — polling rather than a hard-coded
+  # press count, since the step count is segment-driven (meccanica has an
+  # extra step4 the shared set lacks).
   def advance_to_video_step
     20.times do
-      break if page.has_selector?("button[aria-label='Avvia il video']", wait: 0.2) ||
-               page.has_text?("Video non disponibile", wait: 0.2)
+      break if page.has_selector?("button[aria-label='Avvia il video']", wait: 0.2)
       press_key("ArrowRight")
     end
   end
@@ -339,9 +338,8 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_equal "recap_sent", @session.reload.status
   end
 
-  # M18: every criticality ends on a deep-dive video step (click-to-play, no
-  # autoplay). C01/meccanica/bom1 resolves to a real embed today (a
-  # segment+token override in content/config/videos.json) — see
+  # M18: a criticality with a deep-dive video (content/config/videos.json —
+  # today only C01) ends on a video step (click-to-play, no autoplay). See
   # presale_sessions_controller_test.rb for the resolution assertions.
   test "the video step shows a click-to-play facade, plays on click, and the arrow key still advances" do
     # Capybara doesn't reset the browser window size between tests in this file,
@@ -372,26 +370,23 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_equal [ 1 ], @session.reload.discussed_criticalities
   end
 
-  test "the video step falls back to a placeholder when the configured video doesn't resolve to an embed" do
-    # Pin the window size for the same reason as the test above.
-    page.driver.browser.manage.window.resize_to(1400, 1400)
-    # content/config/videos.json today only holds textual placeholders that
-    # happen to be syntactically valid YouTube URLs, so VideoEmbed.url never
-    # actually returns nil yet — stub it to exercise the placeholder a real
-    # content author will eventually trigger with url: null.
+  test "a criticality without a deep-dive video goes from its last slide straight back to the hub" do
+    # Only criticalities listed in content/config/videos.json get a final video
+    # step; stub the embed away so C01 behaves like every other criticality.
     VideoEmbed.stub(:url, nil) do
       visit present_presale_session_path(@session)
     end
     skip_intro
     react_click "Tempi di produzione non raccolti"
+    assert_selector "img[src*='C01-step1']", wait: 5
 
-    advance_to_video_step
-    assert_text "Video non disponibile"
-    page.save_screenshot("tmp/screenshots/present-video-placeholder.png")
-
-    # The placeholder doesn't block progress: → still advances to the hub.
-    press_key("ArrowRight")
+    20.times do
+      break if page.has_text?("Dove fa più difficoltà la tua azienda?", wait: 0.2)
+      assert_no_selector "button[aria-label='Avvia il video']", wait: 0
+      press_key("ArrowRight")
+    end
     assert_text "Dove fa più difficoltà la tua azienda?"
+    assert_equal [ 1 ], @session.reload.discussed_criticalities
   end
 
   test "the video step renders correctly at mobile width" do

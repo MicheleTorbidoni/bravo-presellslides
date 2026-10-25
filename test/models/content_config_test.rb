@@ -340,8 +340,8 @@ class ContentConfigTest < ActiveSupport::TestCase
   end
 
   test "video_url_for reads videos.json: a configured url resolves, an unknown criticality is nil" do
-    # Content-agnostic (URLs in videos.json are placeholders that will be replaced):
-    # criticality 1 is configured, so it resolves; criticality 999 does not exist.
+    # Content-agnostic (the actual URLs are content and will change): criticality
+    # 1 is configured, so it resolves; criticality 999 does not exist.
     assert ContentConfig.video_url_for(
       criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
     ).present?
