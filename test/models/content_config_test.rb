@@ -294,10 +294,11 @@ class ContentConfigTest < ActiveSupport::TestCase
       operational_profile: "ho-excel-bom-bom1"
     )
 
-    assert_equal %w[ C01-step1 C01-step2 C01-step3 ], steps.map { |s| s[:id] }
+    assert_equal %w[ C01-step1 C01-step2 C01-step3 C01-step4 ], steps.map { |s| s[:id] }
     # step3 has two phases (C01-step3.f1 / .f2)
-    assert_equal 2, steps.last[:phases].size
-    assert(steps.first[:phases].first.include?("criticalities/C01-step1.png"))
+    assert_equal 2, steps.find { |s| s[:id] == "C01-step3" }[:phases].size
+    assert_equal({ kind: "image", audio: false }, steps.first[:phases].first.slice(:kind, :audio))
+    assert_equal "/presentation_assets/criticalities/C01-step1.png", path_of(steps.first[:phases].first)
     # title/body come from slides.json (carried over)
     assert_equal "Tempi disponibili da subito.", steps.first[:title]
   end
@@ -310,7 +311,7 @@ class ContentConfigTest < ActiveSupport::TestCase
       criticality_id: 1, segment: nil, operational_profile: "ho-excel-bom-bomN"
     )
 
-    step2 = ->(steps) { steps.find { |s| s[:id] == "C01-step2" }[:phases].first }
+    step2 = ->(steps) { path_of(steps.find { |s| s[:id] == "C01-step2" }[:phases].first) }
     assert(step2.call(without).end_with?("C01-step2.png"))
     assert(step2.call(with).end_with?("C01-step2-bomN.png"))
   end
@@ -319,7 +320,7 @@ class ContentConfigTest < ActiveSupport::TestCase
     steps = ContentConfig.intro_steps
 
     assert_equal %w[ Intro-step1 Intro-step2 Intro-step3 ], steps.map { |s| s[:id] }
-    assert(steps.first[:phases].first.end_with?("/presentation_assets/intro/Intro-step1.png"))
+    assert_equal "/presentation_assets/intro/Intro-step1.png", path_of(steps.first[:phases].first)
     # titles/body come from intro.json (text-per-step) — assert against the file so
     # editing the intro copy doesn't break this wiring test.
     intro_json = JSON.parse(Rails.root.join("content/config/intro.json").read)
@@ -339,8 +340,8 @@ class ContentConfigTest < ActiveSupport::TestCase
   end
 
   test "video_url_for reads videos.json: a configured url resolves, an unknown criticality is nil" do
-    # Content-agnostic (URLs in videos.json are placeholders that will be replaced):
-    # criticality 1 is configured, so it resolves; criticality 999 does not exist.
+    # Content-agnostic (the actual URLs are content and will change): criticality
+    # 1 is configured, so it resolves; criticality 999 does not exist.
     assert ContentConfig.video_url_for(
       criticality_id: 1, segment: "meccanica", operational_profile: "ho-excel-bom-bom1"
     ).present?
@@ -436,13 +437,105 @@ class ContentConfigTest < ActiveSupport::TestCase
     end
   end
 
+  # --- M19: minivideos as steps or phases --------------------------------------
+  # Fixture codes C93–C96 are owned one per test (see the C97–C99 note above).
+
+  test "parse_asset_name recognises .mp4 and the .audio suffix" do
+    video = ContentConfig.send(:parse_asset_name, "C03-step2.mp4")
+    assert_equal({ code: "C03", step: 2, token: nil, phase: nil, kind: "video", audio: false }, video)
+
+    spoken = ContentConfig.send(:parse_asset_name, "C03-step2.audio.mp4")
+    assert_equal [ "video", true, nil ], spoken.values_at(:kind, :audio, :token)
+
+    full = ContentConfig.send(:parse_asset_name, "C03-step2-bomN.f2.audio.mp4")
+    assert_equal [ "bomN", 2, true ], full.values_at(:token, :phase, :audio)
+
+    image = ContentConfig.send(:parse_asset_name, "C03-step2.png")
+    assert_equal [ "image", false ], image.values_at(:kind, :audio)
+  end
+
+  test "parse_asset_name reads a hyphenated -audio as a token and rejects other names" do
+    # -audio with a hyphen is a (never-matching) token, not the audio flag
+    hyphen = ContentConfig.send(:parse_asset_name, "C03-step2-audio.mp4")
+    assert_equal [ "audio", false ], hyphen.values_at(:token, :audio)
+
+    assert_nil ContentConfig.send(:parse_asset_name, "C03-step2.audio.png") # .audio is mp4-only
+    assert_nil ContentConfig.send(:parse_asset_name, "C04-step3.mov") # source videos are ignored
+    assert_nil ContentConfig.send(:parse_asset_name, "C03-step2.webm")
+  end
+
+  test "steps_for counts videos in the structure, including mixed image/video phases" do
+    with_assets(
+      "criticalities/C96-step1.mp4",
+      "criticalities/C96-step2.f1.png", "criticalities/C96-step2.f2.mp4",
+      "criticalities/C96-step3-bomN.mp4" # token variants never add structure
+    ) do
+      steps = ContentConfig.steps_for(criticality_id: 96, segment: nil, operational_profile: "ho-excel-bom-bom1")
+
+      assert_equal %w[ C96-step1 C96-step2 ], steps.map { |s| s[:id] }
+      assert_equal [ "video" ], steps[0][:phases].map { |p| p[:kind] }
+      assert_equal %w[ image video ], steps[1][:phases].map { |p| p[:kind] }
+      assert(path_of(steps[1][:phases][1]).end_with?("criticalities/C96-step2.f2.mp4"))
+    end
+  end
+
+  test "steps_for prefers .audio.mp4 over .mp4 over .png for the same logical name" do
+    with_assets("criticalities/C95-step1.png", "criticalities/C95-step1.mp4", "criticalities/C95-step1.audio.mp4") do
+      phase = ContentConfig.steps_for(criticality_id: 95, segment: nil, operational_profile: "")[0][:phases][0]
+      assert(path_of(phase).end_with?("C95-step1.audio.mp4"))
+      assert_equal [ "video", true ], phase.values_at(:kind, :audio)
+    end
+
+    with_assets("criticalities/C95-step1.png", "criticalities/C95-step1.mp4") do
+      phase = ContentConfig.steps_for(criticality_id: 95, segment: nil, operational_profile: "")[0][:phases][0]
+      assert(path_of(phase).end_with?("C95-step1.mp4"))
+      assert_equal [ "video", false ], phase.values_at(:kind, :audio)
+    end
+  end
+
+  test "the resolution chain still beats the extension priority" do
+    with_assets(
+      "criticalities/C94-step1.mp4", "criticalities/C94-step1-bomN.audio.mp4",
+      "meccanica/C94-step1.png", "meccanica/C94-step1-bomN.png"
+    ) do
+      # segment+token (a png) beats the shared token (a spoken video)
+      assert(seg_step1_url(94, segment: "meccanica", profile: "ho-excel-bom-bomN")
+        .end_with?("meccanica/C94-step1-bomN.png"))
+      # segment default (a png) beats the shared default (a video)
+      assert(seg_step1_url(94, segment: "meccanica", profile: "ho-excel-bom-bom1")
+        .end_with?("meccanica/C94-step1.png"))
+      # no segment art: the shared token video wins
+      assert(seg_step1_url(94, segment: "elettronica", profile: "ho-excel-bom-bomN")
+        .end_with?("criticalities/C94-step1-bomN.audio.mp4"))
+    end
+  end
+
+  test "phase URLs carry a ?v=<mtime> version that changes when the file is re-exported" do
+    with_assets("criticalities/C93-step1.mp4") do
+      file = Rails.root.join("content/assets/criticalities/C93-step1.mp4")
+      File.utime(Time.at(1_700_000_000), Time.at(1_700_000_000), file)
+      url = ContentConfig.steps_for(criticality_id: 93, segment: nil, operational_profile: "")[0][:phases][0][:url]
+      assert_equal "/presentation_assets/criticalities/C93-step1.mp4?v=1700000000", url
+
+      File.utime(Time.at(1_700_000_500), Time.at(1_700_000_500), file)
+      url = ContentConfig.steps_for(criticality_id: 93, segment: nil, operational_profile: "")[0][:phases][0][:url]
+      assert(url.end_with?("?v=1700000500"))
+    end
+  end
+
   private
     def seg_step1_url(criticality_id, segment:, profile: "ho-excel-bom-bom1")
       steps = ContentConfig.steps_for(
         criticality_id: criticality_id, segment: segment, operational_profile: profile
       )
       step_id = format("C%02d-step1", criticality_id)
-      steps.find { |s| s[:id] == step_id }&.dig(:phases)&.first
+      phase = steps.find { |s| s[:id] == step_id }&.dig(:phases)&.first
+      phase && path_of(phase)
+    end
+
+    # The served URL of a phase without its ?v=<mtime> cache-busting version.
+    def path_of(phase)
+      phase[:url].split("?").first
     end
 
     # Creates tiny PNG fixtures under content/assets/ for the duration of the

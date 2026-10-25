@@ -130,13 +130,13 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal "meccanica", props.dig("session", "segment")
     # Steps are discovered file-driven from content/assets/criticalities/, keyed
-    # by criticality id; each step carries its resolved phase image URLs.
+    # by criticality id; each step carries its resolved phases ({ url, kind, audio }).
     assert props["stepsByCriticality"].key?("1")
     assert_equal "C01-step1", props.dig("stepsByCriticality", "1", 0, "id")
-    assert(props.dig("stepsByCriticality", "1", 0, "phases").first.include?("C01-step1.png"))
+    assert(props.dig("stepsByCriticality", "1", 0, "phases", 0, "url").include?("C01-step1.png"))
     # The intro flow precedes the hub, shared across segments/profiles.
     assert_equal "Intro-step1", props.dig("introSteps", 0, "id")
-    assert(props.dig("introSteps", 0, "phases").first.include?("intro/Intro-step1.png"))
+    assert(props.dig("introSteps", 0, "phases", 0, "url").include?("intro/Intro-step1.png"))
     assert_equal [], props["capturedQuestions"]
   end
 
@@ -687,15 +687,23 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
       selected_criticalities: [ 1, 9 ],
       extra_criticalities: [ { id: 9, segment: "elettronica" } ])
 
-    get present_presale_session_path(session)
+    # The per-segment art is content (and today every segment folder is empty),
+    # so ContentConfig.steps_for is stubbed to echo back the segment it was
+    # asked to resolve against — content_config_test.rb covers the real
+    # file resolution with controlled fixtures.
+    echo = ->(criticality_id:, segment:, operational_profile:) {
+      [ { id: format("C%02d-step1", criticality_id), title: nil, body: nil,
+          phases: [ { url: "/presentation_assets/#{segment}/x.png", kind: "image", audio: false } ] } ]
+    }
+    ContentConfig.stub(:steps_for, echo) { get present_presale_session_path(session) }
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
 
     # Criticality 9's slides resolve on elettronica (its origin), not on meccanica.
-    first_phase = props.dig("stepsByCriticality", "9", 0, "phases").first
+    first_phase = props.dig("stepsByCriticality", "9", 0, "phases", 0, "url")
     assert_includes first_phase, "/elettronica/"
     refute_includes first_phase, "/meccanica/"
     # A regular meccanica criticality still resolves against the session segment.
-    assert_includes props.dig("stepsByCriticality", "1", 0, "phases").first, "/meccanica/"
+    assert_includes props.dig("stepsByCriticality", "1", 0, "phases", 0, "url"), "/meccanica/"
   end
 
   # content/config/videos.json is content-author-owned data that changes over
@@ -749,24 +757,39 @@ class PresaleSessionsControllerTest < ActionDispatch::IntegrationTest
       video_step.dig("video", "embed_url")
   end
 
-  test "present's video step is a placeholder when the configured URL doesn't resolve to an embed" do
+  test "present appends no video step when the criticality has no video" do
     sign_in
     session = presale_sessions(:one)
     session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
 
-    # content/config/videos.json currently only holds textual placeholder URLs
-    # that happen to be syntactically valid YouTube links (so VideoEmbed.url
-    # never actually returns nil today) — stub it to exercise the placeholder
-    # branch the player falls back to once real content author sets url: null.
+    # Stubbed rather than read from videos.json, which is content that changes
+    # over time: only criticality 1 has a video here.
+    only_c01 = ->(criticality_id:, segment:, operational_profile:) {
+      "https://youtu.be/deep-dive" if criticality_id == 1
+    }
+    ContentConfig.stub(:video_url_for, only_c01) { get present_presale_session_path(session) }
+    assert_response :success
+    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
+
+    assert_equal "C01-video", props.dig("stepsByCriticality", "1").last["id"]
+    # Every other criticality ends on its last slide: no video step anywhere.
+    props["stepsByCriticality"].except("1").each_value do |steps|
+      assert(steps.none? { |s| s["video"] }, "unexpected video step")
+    end
+  end
+
+  test "present appends no video step when the configured URL doesn't resolve to an embed" do
+    sign_in
+    session = presale_sessions(:one)
+    session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+
     VideoEmbed.stub(:url, nil) do
       get present_presale_session_path(session)
     end
     assert_response :success
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
 
-    video_step = props.dig("stepsByCriticality", "1").last
-    assert_equal "C01-video", video_step["id"]
-    assert_nil video_step.dig("video", "embed_url")
+    assert(props.dig("stepsByCriticality", "1").none? { |s| s["video"] })
   end
 
   test "update persists extra criticalities via the auto-save endpoint" do

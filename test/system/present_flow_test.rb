@@ -81,13 +81,12 @@ class PresentFlowTest < ApplicationSystemTestCase
   end
 
   # Advances through a criticality's image steps until its trailing M18 video
-  # step shows (either the click-to-play button or the "not available"
-  # placeholder) — polling rather than a hard-coded press count, since the step
-  # count is segment-driven (meccanica has an extra step4 the shared set lacks).
+  # step shows (the click-to-play button) — polling rather than a hard-coded
+  # press count, since the step count is segment-driven (meccanica has an
+  # extra step4 the shared set lacks).
   def advance_to_video_step
     20.times do
-      break if page.has_selector?("button[aria-label='Avvia il video']", wait: 0.2) ||
-               page.has_text?("Video non disponibile", wait: 0.2)
+      break if page.has_selector?("button[aria-label='Avvia il video']", wait: 0.2)
       press_key("ArrowRight")
     end
   end
@@ -339,9 +338,8 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_equal "recap_sent", @session.reload.status
   end
 
-  # M18: every criticality ends on a deep-dive video step (click-to-play, no
-  # autoplay). C01/meccanica/bom1 resolves to a real embed today (a
-  # segment+token override in content/config/videos.json) — see
+  # M18: a criticality with a deep-dive video (content/config/videos.json —
+  # today only C01) ends on a video step (click-to-play, no autoplay). See
   # presale_sessions_controller_test.rb for the resolution assertions.
   test "the video step shows a click-to-play facade, plays on click, and the arrow key still advances" do
     # Capybara doesn't reset the browser window size between tests in this file,
@@ -372,26 +370,23 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_equal [ 1 ], @session.reload.discussed_criticalities
   end
 
-  test "the video step falls back to a placeholder when the configured video doesn't resolve to an embed" do
-    # Pin the window size for the same reason as the test above.
-    page.driver.browser.manage.window.resize_to(1400, 1400)
-    # content/config/videos.json today only holds textual placeholders that
-    # happen to be syntactically valid YouTube URLs, so VideoEmbed.url never
-    # actually returns nil yet — stub it to exercise the placeholder a real
-    # content author will eventually trigger with url: null.
+  test "a criticality without a deep-dive video goes from its last slide straight back to the hub" do
+    # Only criticalities listed in content/config/videos.json get a final video
+    # step; stub the embed away so C01 behaves like every other criticality.
     VideoEmbed.stub(:url, nil) do
       visit present_presale_session_path(@session)
     end
     skip_intro
     react_click "Tempi di produzione non raccolti"
+    assert_selector "img[src*='C01-step1']", wait: 5
 
-    advance_to_video_step
-    assert_text "Video non disponibile"
-    page.save_screenshot("tmp/screenshots/present-video-placeholder.png")
-
-    # The placeholder doesn't block progress: → still advances to the hub.
-    press_key("ArrowRight")
+    20.times do
+      break if page.has_text?("Dove fa più difficoltà la tua azienda?", wait: 0.2)
+      assert_no_selector "button[aria-label='Avvia il video']", wait: 0
+      press_key("ArrowRight")
+    end
     assert_text "Dove fa più difficoltà la tua azienda?"
+    assert_equal [ 1 ], @session.reload.discussed_criticalities
   end
 
   test "the video step renders correctly at mobile width" do
@@ -404,4 +399,119 @@ class PresentFlowTest < ApplicationSystemTestCase
     assert_selector "button[aria-label='Avvia il video']", wait: 5
     page.save_screenshot("tmp/screenshots/present-video-step-mobile.png")
   end
+
+  # --- M19: minivideos as steps or phases ---------------------------------------
+  # Criticality 1's flow is swapped for a fictitious C91 flow built from real
+  # files on disk (resolved by the real ContentConfig.steps_for, so parsing,
+  # extension priority and ?v= are exercised end-to-end, and the videos are
+  # actually served by PresentationAssetsController):
+  #   step1 image → step2 muted video → step3 = [.f1 image, .f2 spoken video]
+
+  test "a video step autoplays muted and looping, a video phase works, and navigation is unchanged" do
+    page.driver.browser.manage.window.resize_to(1400, 1400)
+    visit_with_minivideo_flow
+    skip_intro
+    react_click "Tempi di produzione non raccolti"
+
+    assert_selector "img[src*='C91-step1.png']", wait: 5
+    press_key("ArrowRight")
+
+    # Muted video step: autoplay + loop, and it actually plays.
+    assert_selector "video[src*='C91-step2.mp4']", wait: 5
+    assert_equal [ true, true ], video_state("muted", "loop")
+    assert_video_playing
+    page.save_screenshot("tmp/screenshots/present-minivideo-step.png")
+
+    # Into the phased step: image phase first, with two phase dots, and the
+    # previous <video> is gone (unmounted — no residual playback/audio).
+    press_key("ArrowRight")
+    assert_selector "img[src*='C91-step3.f1.png']", wait: 5
+    assert_no_selector "video"
+    assert_selector ".rounded-full.bg-bm-white", count: 1
+    assert_selector ".rounded-full.bg-bm-white\\/40", count: 1
+
+    # Spoken video phase: unmuted, no loop (rests on its last frame).
+    press_key("ArrowRight")
+    assert_selector "video[src*='C91-step3.f2.audio.mp4']", wait: 5
+    assert_equal [ false, false ], video_state("muted", "loop")
+    page.save_screenshot("tmp/screenshots/present-minivideo-audio.png")
+
+    # Headless Chrome refuses the unmuted autoplay (synthetic key events carry
+    # no user activation), so the fallback button must show — and clicking it
+    # must not advance the flow.
+    unless page.evaluate_script("!document.querySelector('video').paused")
+      button = find("button[aria-label='Avvia il video con audio']", wait: 5)
+      page.execute_script("arguments[0].click()", button)
+      assert_selector "video[src*='C91-step3.f2.audio.mp4']"
+      assert_no_text "Dove fa più difficoltà la tua azienda?"
+    end
+
+    # Back to the image phase (video unmounted), then back to the muted video.
+    press_key("ArrowLeft")
+    assert_selector "img[src*='C91-step3.f1.png']", wait: 5
+    assert_no_selector "video"
+    press_key("ArrowLeft")
+    assert_selector "video[src*='C91-step2.mp4']", wait: 5
+
+    # Forward past the end still reaches the M18 video step, then the hub.
+    advance_to_video_step
+    assert_selector "button[aria-label='Avvia il video']", wait: 5
+    press_key("ArrowRight")
+    assert_text "Dove fa più difficoltà la tua azienda?"
+  end
+
+  test "a video step renders correctly at mobile width" do
+    page.driver.browser.manage.window.resize_to(390, 900)
+    visit_with_minivideo_flow
+    skip_intro
+    react_click "Tempi di produzione non raccolti"
+
+    press_key("ArrowRight")
+    assert_selector "video[src*='C91-step2.mp4']", wait: 5
+    assert_video_playing
+    page.save_screenshot("tmp/screenshots/present-minivideo-step-mobile.png")
+  end
+
+  private
+    MINIVIDEO_FILES = {
+      "C91-step1.png" => "content/assets/criticalities/C01-step1.png",
+      "C91-step2.mp4" => "test/fixtures/files/minivideo.mp4",
+      "C91-step3.f1.png" => "content/assets/criticalities/C01-step2.png",
+      "C91-step3.f2.audio.mp4" => "test/fixtures/files/minivideo.audio.mp4"
+    }.freeze
+
+    # Visits the presentation with criticality 1 resolving to the C91 fixture
+    # flow. The stub only needs to cover the visit: the steps travel as props
+    # and the media are fetched from disk afterwards, so the files stay in place
+    # until the test ends.
+    def visit_with_minivideo_flow
+      dir = Rails.root.join("content/assets/criticalities")
+      MINIVIDEO_FILES.each { |name, src| FileUtils.cp(Rails.root.join(src), dir.join(name)) }
+      @minivideo_paths = MINIVIDEO_FILES.keys.map { |name| dir.join(name) }
+
+      original = ContentConfig.method(:steps_for)
+      swap = ->(criticality_id:, segment:, operational_profile:) {
+        id = criticality_id == 1 ? 91 : criticality_id
+        original.call(criticality_id: id, segment: segment, operational_profile: operational_profile)
+      }
+      ContentConfig.stub(:steps_for, swap) { visit present_presale_session_path(@session) }
+    end
+
+    teardown do
+      @minivideo_paths&.each { |path| FileUtils.rm_f(path) }
+    end
+
+    def video_state(*props)
+      props.map { |prop| page.evaluate_script("document.querySelector('video').#{prop}") }
+    end
+
+    # Waits for the <video> to actually advance (decoded and playing), not just
+    # mount — proves the served file, its content type and autoplay all work.
+    def assert_video_playing
+      playing = 50.times.any? do
+        sleep 0.1
+        page.evaluate_script("(v => !!v && !v.paused && v.currentTime > 0)(document.querySelector('video'))")
+      end
+      assert playing, "expected the minivideo to be playing"
+    end
 end

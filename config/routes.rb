@@ -36,14 +36,14 @@ Rails.application.routes.draw do
   # The follow-up appointment as a downloadable .ics (same token gate).
   get "/r/:token/calendar.ics", to: "public_recaps#calendar", as: :public_recap_calendar
 
-  # Serves the prospect-facing slide bitmaps at runtime from content/assets/
+  # Serves the prospect-facing slide media (bitmaps + minivideos) at runtime from content/assets/
   # (which is outside the web root). The slide player receives already-resolved
   # URLs whose :dir is either "criticalities" (shared) or a segment id (override)
   # — see PresentationAssetsController and ContentConfig.steps_for.
   get "presentation_assets/:dir/:filename",
       to: "presentation_assets#show",
       as: :presentation_asset,
-      constraints: { filename: /[^\/]+\.png/ }
+      constraints: { filename: /[^\/]+\.(png|mp4)/ }
 
   namespace :admin do
     root to: redirect("/admin/users")
