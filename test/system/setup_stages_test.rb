@@ -1,16 +1,17 @@
 require "application_system_test_case"
 
-# M17 (revised) — Setup is shown twice in the flow, at the same URL, rendering
-# more or less depending on whether Questionario A has already run
-# (operational_profile present): "light" before it (segment + an optional
-# criticality checklist only, routes into the questionnaire) and "full" after it
-# (every section, criticality selection required, routes into the presentation).
-# See Setup.tsx / PresaleSessionsController#setup.
+# Fase 8 — Setup is shown once, as the first step of the flow, and holds the
+# whole presentation configuration: prospect data, segment, the criticality
+# selection (always the full catalogue, independent of the segment) and its
+# order, and the intro/hub toggles. "Avanti" leads into Questionario A, which
+# then goes straight into the presentation. See Setup.tsx /
+# PresaleSessionsController#setup.
 class SetupStagesTest < ApplicationSystemTestCase
   setup do
     @user = users(:one)
     @session = presale_sessions(:one)
-    @session.update!(company_name: "Acme Spa", contact_name: "Mario Rossi")
+    @session.update!(company_name: "Acme Spa", contact_name: "Mario Rossi",
+      segment: nil, operational_profile: nil)
 
     visit login_path
     react_fill "email", @user.email
@@ -35,43 +36,77 @@ class SetupStagesTest < ApplicationSystemTestCase
     JS
   end
 
-  test "light pass (before Questionario A): reduced UI, criticality optional, Avanti goes to the questionnaire" do
-    @session.update!(segment: nil, operational_profile: nil)
-    visit setup_presale_session_path(@session)
-
-    assert_no_text "Mostra l'introduzione"
-    assert_no_text "Mostra l'hub tra le criticità"
-    assert_no_text "Aggiungi criticità da un altro segmento"
-    assert_no_selector "button[aria-label='Trascina per riordinare']"
-    page.save_screenshot("tmp/screenshots/setup-light.png")
-
-    # Segment alone is enough to proceed — no need to touch criticalities here.
-    react_click "Meccanica"
-    react_click "Avanti"
-    assert_current_path profiling_presale_session_path(@session), wait: 5
-    assert_equal "meccanica", @session.reload.segment
+  def toggle(label)
+    input = find("li", text: label).find("input[type='checkbox']")
+    page.execute_script("arguments[0].click()", input)
   end
 
-  test "light pass without a segment shows the same validation as the full pass" do
-    @session.update!(segment: nil, operational_profile: nil)
+  test "every section is shown up front, with the toggles pre-checked and no criticality enabled" do
+    visit setup_presale_session_path(@session)
+
+    # The whole catalogue is visible even before a segment is chosen.
+    assert_selector "button[aria-label='Trascina per riordinare']", count: ContentConfig.criticalities.size
+    assert_no_selector "li input[type='checkbox']:checked"
+    assert_no_text "Tipica del segmento"
+    assert_no_text "Aggiungi criticità da un altro segmento"
+    assert find("label", text: "Mostra l'introduzione all'inizio").find("input").checked?
+    assert find("label", text: "Mostra l'hub tra le criticità").find("input").checked?
+    page.save_screenshot("tmp/screenshots/setup-single.png")
+  end
+
+  test "at phone width the setup has no horizontal scroll" do
+    @session.update!(segment: "meccanica", suggested_criticalities: [ 9 ])
+    page.driver.browser.manage.window.resize_to(390, 900)
+    visit setup_presale_session_path(@session)
+
+    assert_text "Criticità da discutere"
+    row = find("li", text: "Indicata dal prospect")
+    page.execute_script("arguments[0].scrollIntoView({ block: \"center\" })", row)
+    sleep 0.3
+    page.save_screenshot("tmp/screenshots/setup-single-mobile.png")
+    assert_equal page.evaluate_script("window.innerWidth"),
+      page.evaluate_script("document.documentElement.scrollWidth")
+  ensure
+    page.driver.browser.manage.window.resize_to(1400, 1400)
+  end
+
+  test "switching segment only moves the 'Tipica del segmento' hint and keeps the selection" do
+    visit setup_presale_session_path(@session)
+
+    react_click "Meccanica"
+    meccanica = ContentConfig.criticalities_for_segment(segment: "meccanica").size
+    assert_selector "li", text: "Tipica del segmento", count: meccanica
+
+    toggle "Tempi di produzione non raccolti"
+    react_click "Elettronica"
+    elettronica = ContentConfig.criticalities_for_segment(segment: "elettronica").size
+    assert_selector "li", text: "Tipica del segmento", count: elettronica
+    # The selection survives the segment switch.
+    assert find("li", text: "Tempi di produzione non raccolti").find("input[type='checkbox']").checked?
+  end
+
+  test "Avanti requires a segment and at least one criticality, then goes to the questionnaire" do
     visit setup_presale_session_path(@session)
 
     react_click "Avanti"
     assert_text "Seleziona un segmento per continuare."
+    assert_text "Abilita almeno una criticità per continuare."
     assert_current_path setup_presale_session_path(@session)
+
+    react_click "Meccanica"
+    toggle "Tempi di produzione non raccolti"
+    react_click "Avanti"
+    assert_current_path profiling_presale_session_path(@session), wait: 5
+    assert_equal "meccanica", @session.reload.segment
+    assert_equal [ 1 ], @session.selected_criticalities
   end
 
-  test "full pass (after Questionario A): every section shown, criticality required, Avanti goes to the presentation" do
-    @session.update!(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
+  test "HubSpot suggestions arrive pre-enabled and badged" do
+    @session.update!(segment: "meccanica", suggested_criticalities: [ 9 ])
     visit setup_presale_session_path(@session)
 
-    assert_text "Mostra l'introduzione"
-    assert_text "Mostra l'hub tra le criticità"
-    assert_text "Aggiungi criticità da un altro segmento"
-    assert_selector "button[aria-label='Trascina per riordinare']", minimum: 1
-    page.save_screenshot("tmp/screenshots/setup-full.png")
-
-    react_click "Avanti"
-    assert_current_path present_presale_session_path(@session), wait: 5
+    row = find("li", text: "Indicata dal prospect")
+    assert row.find("input[type='checkbox']").checked?
+    assert_selector "li input[type='checkbox']:checked", count: 1
   end
 end

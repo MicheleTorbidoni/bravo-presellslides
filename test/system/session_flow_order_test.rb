@@ -1,13 +1,9 @@
 require "application_system_test_case"
 
-# M17 (revised) — Fase 6: end-to-end acceptance test for the reordered flow.
-# Setup is now shown twice: "light" right after creation (segment, criticality
-# optional) routing into Questionario A, then "full" again after it (every
-# section, criticality required) routing into the presentation. This way a
-# session created outside the app's own "Nuova sessione" button (HubSpot
-# webhook, the HubSpot simulator) also always passes through the questionnaire —
-# every entry point lands on the same /setup, which decides light vs full from
-# the session's own state.
+# Fase 8 — end-to-end acceptance test for the flow: Setup (everything about the
+# presentation, shown once) -> Questionario A -> straight into the presentation.
+# Every entry point (the app's "Nuova sessione" button, the HubSpot webhook, the
+# HubSpot simulator) lands on the same /setup, so the questionnaire is always run.
 class SessionFlowOrderTest < ApplicationSystemTestCase
   setup do
     @user = users(:one)
@@ -42,7 +38,7 @@ class SessionFlowOrderTest < ApplicationSystemTestCase
     page.execute_script("arguments[0].click()", input)
   end
 
-  test "create -> Setup (light) -> Questionario A -> Setup (full) -> Present -> Chiusura -> Questionario B -> Debrief" do
+  test "create -> Setup -> Questionario A -> Present -> Chiusura -> Questionario B -> Debrief" do
     react_click "Nuova sessione"
     # Match on path shape rather than looking up the latest session by
     # created_at: system tests hit a real server, and two sessions created in the
@@ -50,10 +46,11 @@ class SessionFlowOrderTest < ApplicationSystemTestCase
     assert_current_path %r{\A/presale_sessions/\d+/setup\z}, wait: 5
     session = PresaleSession.find(current_path[%r{/presale_sessions/(\d+)/setup}, 1])
 
-    # Light pass: only the segment is needed. Picking it auto-selects the whole
-    # criticality subset, but that's not required to proceed here.
-    assert_no_text "Mostra l'introduzione"
+    # Setup holds the whole configuration: segment + at least one criticality.
+    assert_text "Mostra l'introduzione"
     react_click "Meccanica"
+    input = find("li", text: "Tempi di produzione non raccolti").find("input[type='checkbox']")
+    page.execute_script("arguments[0].click()", input)
     react_click "Avanti"
     assert_current_path profiling_presale_session_path(session), wait: 5
 
@@ -65,11 +62,7 @@ class SessionFlowOrderTest < ApplicationSystemTestCase
     assert_button "Avanti", disabled: false
     react_click "Avanti"
 
-    # Full pass: everything from the light pass is already in place (segment,
-    # default criticality selection); the advanced sections are now visible.
-    assert_current_path setup_presale_session_path(session), wait: 5
-    assert_text "Mostra l'introduzione"
-    react_click "Avanti"
+    # No second Setup pass: profiling leads straight into the presentation.
     assert_current_path present_presale_session_path(session), wait: 5
 
     # The C shortcut jumps to the closing page from any view (intro/hub/flow) —
