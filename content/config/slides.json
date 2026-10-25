@@ -32,11 +32,11 @@
         },
         {
           "title": "Dal preventivo al consuntivo.",
-          "body": null
+          "body": "A ogni pezzo versato, il costo reale e lo scostamento dal previsto."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Ogni voce di costo, sotto controllo.",
+          "body": "Materiale, manodopera, macchina e conto lavoro: subito chiaro dove intervenire."
         }
       ]
     },
@@ -49,12 +49,12 @@
           "body": "Una data di consegna affidabile per ogni ordine di {{company_name}}."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Ogni commessa, a che punto è.",
+          "body": "Cosa è in ritardo su tempi e pezzi: rispondi subito ai solleciti dei clienti."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Il carico macchine, prima di promettere.",
+          "body": "Verifica la capacità libera e comunica una data di consegna realistica."
         }
       ]
     },
@@ -64,27 +64,27 @@
       "steps": [
         {
           "title": "Ogni fermo, registrato e analizzato.",
-          "body": null
+          "body": "I sinottici di fabbrica mostrano a colpo d'occhio cosa succede in ogni reparto."
         },
         {
           "title": "Dalla causa all'azione.",
-          "body": null
+          "body": "Fermi, rallentamenti e attrezzaggi lunghi segnalati subito, prima che diventino costi."
         },
         {
-          "title": null,
-          "body": null
+          "title": "L'efficienza, macchina per macchina.",
+          "body": "Report dedicati alle prestazioni di macchine e operatori di {{company_name}}."
         },
         {
-          "title": null,
-          "body": null
+          "title": "I fermi, in tempo reale.",
+          "body": "Ogni fermo macchina visibile nel momento in cui accade."
         },
         {
-          "title": null,
-          "body": null
+          "title": "In automatico o a mano.",
+          "body": "Dalla macchina connessa o dichiarati dall'operatore: nessun fermo sfugge."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Report su misura, ovunque.",
+          "body": "Dashboard adattate a {{company_name}}, consultabili da remoto in ogni momento."
         }
       ]
     },
@@ -111,12 +111,12 @@
           "body": "I tempi di setup di {{company_name}}, misurati e migliorabili."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Lotti da accorpare, in evidenza.",
+          "body": "Gli articoli prodotti spesso in poco tempo rivelano attrezzaggi ripetuti e inefficienti."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Un attrezzaggio, più ordini.",
+          "body": "Articoli con lo stesso materiale lavorati insieme: un solo attrezzaggio, tempi ripartiti in automatico."
         }
       ]
     },
@@ -130,15 +130,15 @@
         },
         {
           "title": "Dal reparto al cruscotto.",
-          "body": null
+          "body": "Produzione e avanzamento commesse visibili subito: il controllo torna alla direzione."
         },
         {
-          "title": null,
-          "body": null
+          "title": "La fabbrica, in tempo reale.",
+          "body": "Il Plant Dashboard mostra reparti, macchine e produttività in un'unica vista."
         },
         {
-          "title": null,
-          "body": null
+          "title": "I numeri della produzione, nel dettaglio.",
+          "body": "Ordini, efficienza delle macchine e degli operatori: report pronti per la direzione."
         }
       ]
     },
@@ -151,16 +151,16 @@
           "body": "I dati di {{company_name}} non si reinseriscono due volte."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Dati controllati, errori eliminati.",
+          "body": "Nessun dato da ricopiare tra un sistema e l'altro: meno tempo, meno errori."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Gli stessi ordini, ovunque.",
+          "body": "Gli ordini registrati per spedire e fatturare arrivano in Bravo per pianificare la produzione."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Sincronizzazione continua e automatica.",
+          "body": "Impostata una volta, si aggiorna da sola: i dati di produzione tornano al gestionale."
         }
       ]
     },
@@ -174,35 +174,35 @@
         },
         {
           "title": "Da Excel al sistema.",
-          "body": null
+          "body": "Semilavorati e prodotti finiti collegati tra loro, ordine dopo ordine."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Lavorazioni e materiali, nello stesso ordine.",
+          "body": "Ogni ordine contiene le fasi da eseguire e i materiali da usare."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Dall'ordine alla bolla.",
+          "body": "Tutto ciò che serve all'operatore, stampato e pronto per iniziare."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Il tempo, dichiarato sull'ordine.",
+          "body": "In reparto gli operatori di {{company_name}} dichiarano il tempo di ogni lavorazione."
         },
         {
-          "title": null,
-          "body": null
+          "title": "La macchina dichiara da sola.",
+          "body": "Tempi, pezzi prodotti e fermi arrivano all'ordine direttamente dalla macchina collegata."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Ordini che si riempiono di dati.",
+          "body": "Man mano che la produzione avanza, ogni ordine si popola di informazioni reali."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Previsto contro reale.",
+          "body": "Tempi e materiali confrontati con l'ordine: subito chiaro cosa esce dalle previsioni."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Report pronti, senza fogli Excel.",
+          "body": "Ordini, efficienza di macchine e operatori, scarti: tutto analizzabile in un attimo."
         }
       ]
     },
@@ -215,20 +215,20 @@
           "body": "Il know-how di {{company_name}} resta in azienda, non in una persona sola."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Documenti legati all'articolo.",
+          "body": "Disegni e piani di assemblaggio collegati alla distinta base, sempre a portata."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Le istruzioni viaggiano con l'ordine.",
+          "body": "Generato l'ordine, documenti e immagini arrivano direttamente agli operatori."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Istruzioni chiare, per chiunque.",
+          "body": "Lavorazioni e prelievi seguono indicazioni sempre disponibili, anche per chi è nuovo."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Su tablet o su carta.",
+          "body": "{{company_name}} sceglie, reparto per reparto, come distribuire le informazioni."
         }
       ]
     },
@@ -242,15 +242,15 @@
         },
         {
           "title": "Come si costruisce una distinta.",
-          "body": null
+          "body": "Ogni scostamento tra distinta e produzione reale, evidenziato fase per fase."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Preventivi precisi, margini protetti.",
+          "body": "Costi calcolati dalla distinta: prezzi di vendita allineati, senza perdere margine."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Anomalie sempre sotto controllo.",
+          "body": "Previsto e reale confrontati di continuo: ogni anomalia di produzione emerge subito."
         }
       ]
     },
@@ -263,12 +263,12 @@
           "body": "Dove {{company_name}} perde tempo e materiale, finalmente visibile."
         },
         {
-          "title": null,
-          "body": null
+          "title": "Ogni scarto, con il suo contesto.",
+          "body": "Quantità e valore registrati con articolo, commessa, ordine, turno, macchina e operatore."
         },
         {
-          "title": null,
-          "body": null
+          "title": "L'analisi degli scarti, a colpo d'occhio.",
+          "body": "Dashboard interattive e report pronti, filtrabili per articolo, commessa, macchina e operatore."
         }
       ]
     },
@@ -282,11 +282,11 @@
         },
         {
           "title": "Dal modello base alla variante.",
-          "body": null
+          "body": "Produzione interna o esterna, colori, componenti: ogni articolo con tutte le sue varianti."
         },
         {
-          "title": null,
-          "body": null
+          "title": "La variante giusta, prima di partire.",
+          "body": "Il pianificatore sceglie la variante migliore per ogni ordine, prima che entri in produzione."
         }
       ]
     }
