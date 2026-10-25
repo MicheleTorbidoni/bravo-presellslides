@@ -251,18 +251,6 @@ class ContentConfigTest < ActiveSupport::TestCase
     assert_equal [], ContentConfig.criticalities_for_segment(segment: "")
   end
 
-  test "criticalities_for resolves the single segment+operational_profile mapping row" do
-    resolved = ContentConfig.criticalities_for(segment: "meccanica", operational_profile: "ho-excel-bom-bom1")
-    assert_equal [ 1, 2, 3, 4, 7, 8, 10 ], resolved
-  end
-
-  test "criticalities_for returns [] for blank segment, blank profile, or no matching row" do
-    assert_equal [], ContentConfig.criticalities_for(segment: nil, operational_profile: "ho-excel-bom-bom1")
-    assert_equal [], ContentConfig.criticalities_for(segment: "meccanica", operational_profile: nil)
-    assert_equal [], ContentConfig.criticalities_for(segment: "does-not-exist", operational_profile: "ho-excel-bom-bom1")
-    assert_equal [], ContentConfig.criticalities_for(segment: "meccanica", operational_profile: "not-a-real-profile")
-  end
-
   test "decode_profile walks the tree into readable question/answer steps" do
     steps = ContentConfig.decode_profile("ho-excel-bom-bom1")
 

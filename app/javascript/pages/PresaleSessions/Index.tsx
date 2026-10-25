@@ -205,10 +205,8 @@ export default function PresaleSessionsIndex({
                   </div>
                   <Badge tone={badge.tone}>{badge.label}</Badge>
                   <div className="flex shrink-0 items-center gap-2">
-                    {/* Setup is shown twice in the flow (light before
-                        Questionario A, full after) and renders itself
-                        accordingly from the session's own state, so it's
-                        always reachable. */}
+                    {/* Setup is the flow's first step and holds the whole
+                        presentation configuration, so it's always reachable. */}
                     <RowAction
                       href={`/presale_sessions/${session.id}/setup`}
                       label="Setup"

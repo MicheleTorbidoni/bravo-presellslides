@@ -51,37 +51,20 @@ class PublicRecapsController < ApplicationController
       session.discussed_criticalities.filter_map { |id| by_id[id]&.dig(:label) }
     end
 
-    # The prospect's resolved criticality subset (or the full list of 13 as the same
-    # predictable fallback used elsewhere), each carrying whether it was discussed
-    # and its context-resolved deep-dive video URL. M8 renders the discussed ones
-    # with a video as simple links; M9 turns this into embeds + subset exploration.
+    # The criticalities the operator enabled for the call, in their chosen order
+    # (or the full list of 13 as the same predictable fallback used by the
+    # presentation), plus any discussed one no longer in that selection, each
+    # carrying whether it was discussed and its context-resolved deep-dive video
+    # URL. M8 renders the discussed ones with a video as simple links; M9 turns
+    # this into embeds + subset exploration.
     def recap_criticalities(session)
-      relevant = ContentConfig.criticalities_for_segment(segment: session.segment)
-      relevant = ContentConfig.criticalities if relevant.empty?
+      relevant = session.presented_criticalities.presence || ContentConfig.criticalities
       discussed = session.discussed_criticalities
-
-      subset = relevant.map do |c|
-        recap_criticality(c, discussed: discussed, segment: session.segment,
-          operational_profile: session.operational_profile)
-      end
-
-      subset + extra_recap_criticalities(session, discussed: discussed, present_ids: relevant.map { |c| c[:id] })
-    end
-
-    # Discussed criticalities borrowed from other segments (M14). Appended to the
-    # subset, deduped against it, with the deep-dive video resolved on the criticality's
-    # origin segment. Only discussed extras surface — the recap highlights those.
-    def extra_recap_criticalities(session, discussed:, present_ids:)
       by_id = ContentConfig.criticalities.index_by { |c| c[:id] }
+      relevant += (discussed - relevant.map { |c| c[:id] }).filter_map { |id| by_id[id] }
 
-      Array(session.extra_criticalities).filter_map do |e|
-        id = e["id"].to_i
-        next unless discussed.include?(id) && present_ids.exclude?(id)
-
-        crit = by_id[id]
-        next unless crit
-
-        recap_criticality(crit, discussed: discussed, segment: e["segment"],
+      relevant.map do |c|
+        recap_criticality(c, discussed: discussed, segment: session.segment,
           operational_profile: session.operational_profile)
       end
     end

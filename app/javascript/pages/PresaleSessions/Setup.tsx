@@ -21,7 +21,6 @@ import { CSS } from "@dnd-kit/utilities"
 import { AppShell } from "@/components/AppShell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { apiPatch } from "@/lib/api"
@@ -29,7 +28,6 @@ import { cn } from "@/lib/utils"
 
 type Segment = { id: string; label: string }
 type Criticality = { id: number; label: string }
-type Extra = { id: number; segment: string }
 
 type SessionDetail = {
   id: number
@@ -37,33 +35,24 @@ type SessionDetail = {
   contact_name: string | null
   prospect_email: string | null
   segment: string | null
-  operational_profile: string | null
 }
 
 // A single criticality row: a drag handle (the only drag-initiating element, so the
-// checkbox stays clickable), the enable/disable checkbox, the label, and the
-// "suggested by prospect" badge. Extra criticalities borrowed from another segment
-// pass `sourceSegmentLabel` (shows an origin badge) and `onRemove` (shows a remove
-// "X"); plain segment rows omit both and stay unchanged. `reorderable` (false on
-// the "light" pass, before Questionario A) simply omits the drag handle — with
-// nothing to grab, the row can't be dragged, so no separate non-sortable list
-// rendering is needed for that pass.
+// checkbox stays clickable), the enable/disable checkbox, the label, the
+// "suggested by prospect" badge, and the "typical of the segment" hint (the
+// segment↔criticality mapping no longer restricts the list, it only flags rows).
 function SortableCriticality({
   criticality,
   isOn,
   isSuggested,
+  isTypical,
   onToggle,
-  sourceSegmentLabel,
-  onRemove,
-  reorderable,
 }: {
   criticality: Criticality
   isOn: boolean
   isSuggested: boolean
+  isTypical: boolean
   onToggle: (id: number) => void
-  sourceSegmentLabel?: string
-  onRemove?: (id: number) => void
-  reorderable: boolean
 }) {
   const {
     attributes,
@@ -90,17 +79,15 @@ function SortableCriticality({
       )}
     >
       <span className="flex items-center gap-3">
-        {reorderable && (
-          <button
-            type="button"
-            aria-label="Trascina per riordinare"
-            className="-ml-1 cursor-grab touch-none text-ink-muted transition-colors hover:text-ink-body active:cursor-grabbing"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
-        )}
+        <button
+          type="button"
+          aria-label="Trascina per riordinare"
+          className="-ml-1 cursor-grab touch-none text-ink-muted transition-colors hover:text-ink-body active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
         <label className="flex cursor-pointer items-center gap-3 font-normal text-ink-body">
           <Checkbox checked={isOn} onChange={() => onToggle(criticality.id)} />
           <span>{criticality.label}</span>
@@ -108,123 +95,29 @@ function SortableCriticality({
       </span>
       <span className="flex shrink-0 items-center gap-2">
         {isSuggested && <Badge tone="accent">Indicata dal prospect</Badge>}
-        {sourceSegmentLabel && <Badge tone="neutral">{sourceSegmentLabel}</Badge>}
-        {onRemove && (
-          <button
-            type="button"
-            aria-label={`Rimuovi ${criticality.label}`}
-            onClick={() => onRemove(criticality.id)}
-            className="text-ink-muted transition-colors hover:text-danger-display"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
+        {isTypical && <Badge tone="neutral">Tipica del segmento</Badge>}
       </span>
     </li>
-  )
-}
-
-// The "add from another segment" panel: pick a segment other than the prospect's,
-// then add any of its criticalities that aren't already in the current subset or
-// already added. Criticalities already present are shown disabled with why.
-function AddFromSegmentPanel({
-  segments,
-  currentSegment,
-  criticalitiesBySegment,
-  segmentIds,
-  extraIds,
-  pickerSegment,
-  onPickSegment,
-  onAdd,
-}: {
-  segments: Segment[]
-  currentSegment: string
-  criticalitiesBySegment: Record<string, Criticality[]>
-  segmentIds: Set<number>
-  extraIds: Set<number>
-  pickerSegment: string
-  onPickSegment: (segId: string) => void
-  onAdd: (id: number, segId: string) => void
-}) {
-  const otherSegments = segments.filter((s) => s.id !== currentSegment)
-  const list = pickerSegment ? (criticalitiesBySegment[pickerSegment] ?? []) : []
-
-  return (
-    <div className="mt-6 rounded-md border border-hairline bg-surface p-4">
-      <h3 className="text-sm font-semibold text-ink-display">
-        Aggiungi criticità da un altro segmento
-      </h3>
-      <p className="mt-1 text-sm text-ink-muted">
-        Porta in questa call una criticità presa da un segmento diverso da quello
-        del prospect. Vale solo per questa sessione.
-      </p>
-      <div className="mt-3 max-w-xs">
-        <Select
-          aria-label="Scegli un altro segmento"
-          value={pickerSegment}
-          onChange={(e) => onPickSegment(e.target.value)}
-        >
-          <option value="">Scegli un segmento…</option>
-          {otherSegments.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      {pickerSegment && (
-        <ul className="mt-3 flex flex-col gap-2">
-          {list.map((c) => {
-            const alreadyInSubset = segmentIds.has(c.id)
-            const alreadyExtra = extraIds.has(c.id)
-            const disabled = alreadyInSubset || alreadyExtra
-            return (
-              <li
-                key={c.id}
-                className="flex items-center justify-between gap-3 rounded-md border border-hairline bg-page px-4 py-2.5 text-sm text-ink-body"
-              >
-                <span>{c.label}</span>
-                {disabled ? (
-                  <span className="shrink-0 text-xs text-ink-muted">
-                    {alreadyInSubset ? "Già presente" : "Aggiunta"}
-                  </span>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => onAdd(c.id, pickerSegment)}
-                  >
-                    Aggiungi
-                  </Button>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </div>
   )
 }
 
 export default function PresaleSessionSetup({
   session,
   segments,
-  criticalitiesBySegment,
+  criticalities,
+  segmentCriticalities,
   selectedCriticalities,
   criticalitiesOrder,
-  extraCriticalities,
   suggested,
   showIntro: showIntroProp,
   showHub: showHubProp,
 }: {
   session: SessionDetail
   segments: Segment[]
-  criticalitiesBySegment: Record<string, Criticality[]>
+  criticalities: Criticality[]
+  segmentCriticalities: Record<string, number[]>
   selectedCriticalities: number[]
   criticalitiesOrder: number[]
-  extraCriticalities: Extra[]
   suggested: number[]
   showIntro: boolean
   showHub: boolean
@@ -234,19 +127,9 @@ export default function PresaleSessionSetup({
   const [segment, setSegment] = useState<string | null>(session.segment)
   const [selected, setSelected] = useState<number[]>(selectedCriticalities)
   const [order, setOrder] = useState<number[]>(criticalitiesOrder)
-  const [extras, setExtras] = useState<Extra[]>(extraCriticalities)
-  const [pickerSegment, setPickerSegment] = useState("")
   const [showIntro, setShowIntro] = useState(showIntroProp)
   const [showHub, setShowHub] = useState(showHubProp)
   const [showError, setShowError] = useState(false)
-
-  // Setup is shown twice: "light" before Questionario A (operational_profile not
-  // set yet — just enough to route into the questionnaire) and "full" after it
-  // (every section, criticality selection required). Session data alone decides
-  // which — no separate prop needed.
-  const profiled = Boolean(session.operational_profile)
-
-  const segmentLabelById = new Map(segments.map((s) => [s.id, s.label]))
 
   const url = `/presale_sessions/${session.id}`
 
@@ -257,34 +140,21 @@ export default function PresaleSessionSetup({
     }),
   )
 
-  // Criticalities available for the currently-selected segment, indexed for lookup.
-  const segmentCriticalities = segment
-    ? (criticalitiesBySegment[segment] ?? [])
-    : []
-  const segmentIds = new Set(segmentCriticalities.map((c) => c.id))
+  // The whole catalogue is always selectable, whatever the segment; the segment
+  // only decides which rows carry the "Tipica del segmento" hint.
+  const typicalIds = new Set(segment ? (segmentCriticalities[segment] ?? []) : [])
 
-  // Extra criticalities borrowed from other segments, resolved against their origin
-  // segment's list (skip any that no longer exist there), carrying that origin.
-  const resolvedExtras = extras.flatMap((e) => {
-    const crit = (criticalitiesBySegment[e.segment] ?? []).find((c) => c.id === e.id)
-    return crit ? [{ criticality: crit, segment: e.segment }] : []
-  })
-  const extraById = new Map(resolvedExtras.map((r) => [r.criticality.id, r]))
-
-  // The combined list — segment subset plus extras — indexed for lookup and resolved
-  // in the operator's chosen order (any id missing from `order` is appended so
-  // nothing disappears from the list). Both kinds share `order`/`selected`.
-  const byId = new Map<number, Criticality>([
-    ...segmentCriticalities.map((c) => [c.id, c] as const),
-    ...resolvedExtras.map((r) => [r.criticality.id, r.criticality] as const),
-  ])
+  // The catalogue resolved in the operator's chosen order (any id missing from
+  // `order` is appended so nothing disappears from the list).
+  const byId = new Map(criticalities.map((c) => [c.id, c] as const))
   const orderedCriticalities = [
     ...order.filter((id) => byId.has(id)),
-    ...[...byId.keys()].filter((id) => !order.includes(id)),
+    ...criticalities.map((c) => c.id).filter((id) => !order.includes(id)),
   ].map((id) => byId.get(id)!)
 
-  // Debounced auto-save: persist the prospect data, criticality selection and the
-  // intro toggle as the operator edits them, so nothing is lost mid-setup.
+  // Debounced auto-save: persist the prospect data, criticality selection/order
+  // and the presentation toggles as the operator edits them, so nothing is lost
+  // mid-setup.
   const firstRender = useRef(true)
   useEffect(() => {
     if (firstRender.current) {
@@ -298,36 +168,17 @@ export default function PresaleSessionSetup({
         segment,
         selected_criticalities: selected,
         criticalities_order: order,
-        extra_criticalities: extras,
         show_intro: showIntro,
         show_hub: showHub,
       })
     }, 400)
     return () => clearTimeout(timer)
-  }, [
-    companyName,
-    contactName,
-    segment,
-    selected,
-    order,
-    extras,
-    showIntro,
-    showHub,
-    url,
-  ])
+  }, [companyName, contactName, segment, selected, order, showIntro, showHub, url])
 
-  // Switching segment changes which criticalities exist, so reset both the selection
-  // and the order to the new segment's full set in default order (the "all enabled by
-  // default" rule) — any previous choice referred to a different segment and would
-  // otherwise leave stale ids.
+  // Switching segment no longer changes which criticalities exist, so the
+  // operator's selection and order are kept as they are.
   function pickSegment(segId: string) {
-    const ids = (criticalitiesBySegment[segId] ?? []).map((c) => c.id)
     setSegment(segId)
-    setSelected(ids)
-    setOrder(ids)
-    // Extras belong to the previous segment's call; a new segment starts clean.
-    setExtras([])
-    setPickerSegment("")
     setShowError(false)
   }
 
@@ -336,21 +187,6 @@ export default function PresaleSessionSetup({
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
     setShowError(false)
-  }
-
-  // Bring a criticality from another segment into this call: it joins the list
-  // enabled and at the end of the order, exactly like a normal one.
-  function addExtra(id: number, segId: string) {
-    setExtras((prev) => [...prev, { id, segment: segId }])
-    setSelected((prev) => (prev.includes(id) ? prev : [...prev, id]))
-    setOrder((prev) => (prev.includes(id) ? prev : [...prev, id]))
-    setShowError(false)
-  }
-
-  function removeExtra(id: number) {
-    setExtras((prev) => prev.filter((e) => e.id !== id))
-    setSelected((prev) => prev.filter((x) => x !== id))
-    setOrder((prev) => prev.filter((x) => x !== id))
   }
 
   // Reorder the criticality list: dropping a row moves it within `order`, which
@@ -368,12 +204,11 @@ export default function PresaleSessionSetup({
     })
   }
 
-  // Light pass: only the segment is required (criticality selection is optional,
-  // refined on the full pass) and "Avanti" routes into Questionario A. Full pass
-  // (already profiled): same gate as before this revision — segment + at least
-  // one enabled criticality — routing into the presentation.
+  // Everything about the presentation is decided here, so the gate is the full
+  // one: a segment plus at least one enabled criticality. "Avanti" routes into
+  // Questionario A, which then leads straight into the presentation.
   async function advance() {
-    if (!segment || (profiled && selected.length === 0)) {
+    if (!segment || selected.length === 0) {
       setShowError(true)
       return
     }
@@ -383,11 +218,10 @@ export default function PresaleSessionSetup({
       segment,
       selected_criticalities: selected,
       criticalities_order: order,
-      extra_criticalities: extras,
       show_intro: showIntro,
       show_hub: showHub,
     })
-    router.visit(`/presale_sessions/${session.id}/${profiled ? "present" : "profiling"}`)
+    router.visit(`/presale_sessions/${session.id}/profiling`)
   }
 
   return (
@@ -395,21 +229,21 @@ export default function PresaleSessionSetup({
       <Head title="Nuova sessione — Setup">
         <meta
           name="description"
-          content="Inserisci i dati del prospect e scegli il segmento industriale per avviare la profilazione."
+          content="Inserisci i dati del prospect, scegli il segmento industriale e le criticità da presentare prima della profilazione."
         />
         <meta property="og:title" content="Nuova sessione — Setup" />
         <meta
           property="og:description"
-          content="Inserisci i dati del prospect e scegli il segmento industriale per avviare la profilazione."
+          content="Inserisci i dati del prospect, scegli il segmento industriale e le criticità da presentare prima della profilazione."
         />
       </Head>
       <AppShell>
         <div className="border-b border-hairline pb-6">
           <h1>Setup sessione</h1>
           <p className="mt-1">
-            {profiled
-              ? "Rifinisci la configurazione con tutto il quadro ormai chiaro, prima di iniziare la presentazione. Non viene mostrata al prospect."
-              : "Dati essenziali del prospect prima del questionario. Riordino, criticità da altri segmenti e le impostazioni di presentazione si scelgono al prossimo passaggio. Non viene mostrata al prospect."}
+            Dati del prospect, segmento e configurazione della presentazione. Dopo la
+            profilazione si parte direttamente con la presentazione. Non viene mostrata
+            al prospect.
           </p>
         </div>
 
@@ -475,89 +309,61 @@ export default function PresaleSessionSetup({
           )}
         </div>
 
-        {segment && (
-          <div className="mt-8 max-w-2xl">
-            <h2 className="text-base font-semibold text-ink-display">
-              Criticità da discutere
-            </h2>
-            <p className="mt-1 text-sm text-ink-muted">
-              {profiled
-                ? "Abilita le criticità da presentare e trascinale per scegliere l'ordine."
-                : "Abilita le criticità da presentare (facoltativo qui — si rifinisce al prossimo passaggio)."}
-              {suggested.length > 0 &&
-                " Quelle contrassegnate sono già state indicate dal prospect."}
-            </p>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
+        <div className="mt-8 max-w-2xl">
+          <h2 className="text-base font-semibold text-ink-display">
+            Criticità da discutere
+          </h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Abilita le criticità da presentare e trascinale per scegliere l'ordine.
+            {suggested.length > 0 &&
+              " Quelle contrassegnate sono già state indicate dal prospect."}
+          </p>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={orderedCriticalities.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <SortableContext
-                items={orderedCriticalities.map((c) => c.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <ul className="mt-3 flex flex-col gap-2">
-                  {orderedCriticalities.map((c) => {
-                    const extra = extraById.get(c.id)
-                    return (
-                      <SortableCriticality
-                        key={c.id}
-                        criticality={c}
-                        isOn={selected.includes(c.id)}
-                        isSuggested={suggested.includes(c.id)}
-                        onToggle={toggleCriticality}
-                        sourceSegmentLabel={
-                          extra
-                            ? (segmentLabelById.get(extra.segment) ?? extra.segment)
-                            : undefined
-                        }
-                        onRemove={extra ? removeExtra : undefined}
-                        reorderable={profiled}
-                      />
-                    )
-                  })}
-                </ul>
-              </SortableContext>
-            </DndContext>
-            {showError && segment && profiled && selected.length === 0 && (
-              <p className="mt-2 text-xs text-danger-display">
-                Abilita almeno una criticità per continuare.
-              </p>
-            )}
+              <ul className="mt-3 flex flex-col gap-2">
+                {orderedCriticalities.map((c) => (
+                  <SortableCriticality
+                    key={c.id}
+                    criticality={c}
+                    isOn={selected.includes(c.id)}
+                    isSuggested={suggested.includes(c.id)}
+                    isTypical={typicalIds.has(c.id)}
+                    onToggle={toggleCriticality}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+          {showError && selected.length === 0 && (
+            <p className="mt-2 text-xs text-danger-display">
+              Abilita almeno una criticità per continuare.
+            </p>
+          )}
 
-            {profiled && (
-              <>
-                <AddFromSegmentPanel
-                  segments={segments}
-                  currentSegment={segment}
-                  criticalitiesBySegment={criticalitiesBySegment}
-                  segmentIds={segmentIds}
-                  extraIds={new Set(extras.map((e) => e.id))}
-                  pickerSegment={pickerSegment}
-                  onPickSegment={setPickerSegment}
-                  onAdd={addExtra}
-                />
-
-                <div className="mt-5 flex flex-col gap-3">
-                  <label className="flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
-                    <Checkbox
-                      checked={showIntro}
-                      onChange={(e) => setShowIntro(e.target.checked)}
-                    />
-                    <span>Mostra l'introduzione all'inizio</span>
-                  </label>
-                  <label className="flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
-                    <Checkbox
-                      checked={showHub}
-                      onChange={(e) => setShowHub(e.target.checked)}
-                    />
-                    <span>Mostra l'hub tra le criticità</span>
-                  </label>
-                </div>
-              </>
-            )}
+          <div className="mt-5 flex flex-col gap-3">
+            <label className="flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
+              <Checkbox
+                checked={showIntro}
+                onChange={(e) => setShowIntro(e.target.checked)}
+              />
+              <span>Mostra l'introduzione all'inizio</span>
+            </label>
+            <label className="flex w-fit cursor-pointer items-center gap-3 text-sm font-normal text-ink-body">
+              <Checkbox
+                checked={showHub}
+                onChange={(e) => setShowHub(e.target.checked)}
+              />
+              <span>Mostra l'hub tra le criticità</span>
+            </label>
           </div>
-        )}
+        </div>
 
         <div className="mt-8 flex items-center justify-between border-t border-hairline pt-6">
           <Button

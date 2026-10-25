@@ -1,4 +1,5 @@
 require "test_helper"
+require "minitest/mock"
 
 class PublicRecapsControllerTest < ActionDispatch::IntegrationTest
   test "renders the public recap page for a valid token without authentication" do
@@ -33,40 +34,29 @@ class PublicRecapsControllerTest < ActionDispatch::IntegrationTest
     assert_includes discussed["embed_url"], "youtube-nocookie.com/embed/"
   end
 
-  test "a discussed extra criticality appears in the recap, resolved on its origin segment" do
-    # meccanica's subset is [1,2,3,4,7,8,10]; 9 is an elettronica criticality added
-    # as an extra and discussed during the call.
+  test "the recap follows the operator's selection and order, plus anything discussed outside it" do
+    # 9 is outside meccanica's typical subset but was enabled; 5 was discussed
+    # without being in the selection (e.g. the selection changed afterwards).
     session = users(:one).presale_sessions.create!(
       company_name: "Acme", segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
-      discussed_criticalities: [ 1, 9 ],
-      extra_criticalities: [ { id: 9, segment: "elettronica" } ]
+      selected_criticalities: [ 1, 9 ], criticalities_order: [ 9, 1 ],
+      discussed_criticalities: [ 9, 5 ]
     )
     session.ensure_public_token!
 
-    get public_recap_path(token: session.public_token)
+    # videos.json is content that changes over time: echo the resolution context back.
+    echo = ->(criticality_id:, segment:, operational_profile:) {
+      "https://youtu.be/c#{criticality_id}-#{segment}-#{operational_profile}"
+    }
+    ContentConfig.stub(:video_url_for, echo) { get public_recap_path(token: session.public_token) }
     assert_response :success
     props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
 
-    extra = props["criticalities"].find { |c| c["id"] == 9 }
-    assert extra, "the discussed extra should be present in the recap subset"
-    assert extra["discussed"]
-    # Its deep-dive video is resolved on the origin segment (elettronica), not meccanica.
-    assert_equal ContentConfig.video_url_for(
-      criticality_id: 9, segment: "elettronica", operational_profile: "ho-excel-bom-bom1"
-    ), extra["video_url"]
-  end
-
-  test "an extra criticality that was not discussed does not appear in the recap" do
-    session = users(:one).presale_sessions.create!(
-      company_name: "Acme", segment: "meccanica", operational_profile: "ho-excel-bom-bom1",
-      discussed_criticalities: [ 1 ],
-      extra_criticalities: [ { id: 9, segment: "elettronica" } ]
-    )
-    session.ensure_public_token!
-
-    get public_recap_path(token: session.public_token)
-    props = JSON.parse(CGI.unescapeHTML(response.body[/data-page="([^"]*)"/, 1]))["props"]
-    assert_nil props["criticalities"].find { |c| c["id"] == 9 }
+    assert_equal [ 9, 1, 5 ], props["criticalities"].map { |c| c["id"] }
+    nine = props["criticalities"].first
+    assert nine["discussed"]
+    # Its deep-dive video is resolved on the session's own segment.
+    assert_equal "https://youtu.be/c9-meccanica-ho-excel-bom-bom1", nine["video_url"]
   end
 
   test "returns not found for an unknown token" do
