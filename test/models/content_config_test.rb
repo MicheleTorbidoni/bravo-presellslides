@@ -292,16 +292,10 @@ class ContentConfigTest < ActiveSupport::TestCase
   end
 
   test "steps_for applies a token override when the profile contains the token" do
-    without = ContentConfig.steps_for(
-      criticality_id: 1, segment: nil, operational_profile: "ho-excel-bom-bom1"
-    )
-    with = ContentConfig.steps_for(
-      criticality_id: 1, segment: nil, operational_profile: "ho-excel-bom-bomN"
-    )
-
-    step2 = ->(steps) { path_of(steps.find { |s| s[:id] == "C01-step2" }[:phases].first) }
-    assert(step2.call(without).end_with?("C01-step2.png"))
-    assert(step2.call(with).end_with?("C01-step2-bomN.png"))
+    with_assets("criticalities/C92-step1.png", "criticalities/C92-step1-bomN.png") do
+      assert(seg_step1_url(92, segment: nil, profile: "ho-excel-bom-bom1").end_with?("C92-step1.png"))
+      assert(seg_step1_url(92, segment: nil, profile: "ho-excel-bom-bomN").end_with?("C92-step1-bomN.png"))
+    end
   end
 
   test "intro_steps resolves the shared intro flow with texts from intro.json" do
